@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gt, gte, or, sql } from "drizzle-orm";
 import { generateText } from "ai";
 import { getDb } from "@/db";
 import { agentAutoSends, agentEscalations, domains, mailboxAgentSettings, mailboxes, messages } from "@/db/schema";
@@ -18,8 +18,10 @@ import { formatAgentDraftBody } from "./draft-format";
 import { getAgentModel } from "./model";
 import { getReplyRecipients } from "./reply";
 import { renderAutoReplyEmail, splitDisclosureFooter } from "./auto-send-layout";
+import { mailboxOwnerHostnames } from "./mailbox-domains";
 import {
 	AUTO_SEND_CAPS,
+	autoSendRecheck,
 	classifierSystemPrompt,
 	classifierUserPrompt,
 	finalizeAutoReply,
@@ -42,6 +44,7 @@ const DISABLED_AUTO_SEND = {
 export type AutoSendOutcome =
 	| { action: "sent"; messageId: string }
 	| { action: "skip"; reason: string }
+	| { action: "defer" }
 	| { action: "escalate"; reason: string };
 
 /** Settings for one mailbox. Before the auto-send migration, automatic sending stays off. */
@@ -94,15 +97,15 @@ async function readInboundHeaders(env: CloudflareEnv, rawR2Key: string | null, h
 /**
  * Classifies one inbound message and, only for a basic question, sends one threaded reply.
  * Every other outcome is a skip (automated mail) or an escalation a person can see.
+ * Settings, out-of-office, and newer mail are read again immediately before the send claim.
  * Errors fail closed and do not retry into a second send.
  */
 export async function tryAutoSend(env: CloudflareEnv, input: {
 	mailboxId: string;
 	source: typeof messages.$inferSelect;
-	settings: StoredSettings;
 	reviewer: SessionUser;
 }): Promise<AutoSendOutcome> {
-	const { source, settings } = input;
+	const { source } = input;
 	const mailboxId = input.mailboxId;
 	const threadId = source.threadId ?? source.id;
 	const sender = normalizeEmailAddress(source.fromAddr);
@@ -124,14 +127,15 @@ export async function tryAutoSend(env: CloudflareEnv, input: {
 
 		const [mailbox] = await db.select({
 			id: mailboxes.id,
+			userId: mailboxes.userId,
 			localPart: mailboxes.localPart,
 			domainId: mailboxes.domainId,
 			useAllDomains: mailboxes.useAllDomains,
 		}).from(mailboxes).where(eq(mailboxes.id, mailboxId)).limit(1);
 		if (!mailbox) return escalate("no-mailbox");
-		const [ownAddresses, domainRows] = await Promise.all([
+		const [ownAddresses, ownDomains] = await Promise.all([
 			getMailboxDomainAddresses(db, mailbox),
-			db.select({ hostname: domains.hostname }).from(domains),
+			mailboxOwnerHostnames(db, mailbox.userId),
 		]);
 		const headers = await readInboundHeaders(env, source.rawR2Key, source.hasUnsubscribe);
 		if (!headers) return escalate("headers-unavailable");
@@ -144,7 +148,7 @@ export async function tryAutoSend(env: CloudflareEnv, input: {
 			spamVerdict: source.spamVerdict,
 			spamAnalysisError: source.spamAnalysisError,
 			ownAddresses,
-			ownDomains: domainRows.map((row) => row.hostname),
+			ownDomains,
 			subject: source.subject,
 			body,
 		});
@@ -180,15 +184,51 @@ export async function tryAutoSend(env: CloudflareEnv, input: {
 			mailboxLastDay: countOf(usage?.mailboxDay),
 		}, AUTO_SEND_CAPS);
 		if (caps.action === "escalate") return escalate(caps.reason);
-		if (!settings.knowledge.trim()) return escalate("no-knowledge");
 
-		const selection = await getAgentModel(env, settings.modelId);
+		// Settings, out-of-office, and the thread can change while the model runs.
+		// Read them again immediately before the claim so a stale snapshot cannot send.
+		const readSendWindow = async (): Promise<
+			| { action: "send"; settings: StoredSettings }
+			| { action: "defer" }
+			| { action: "skip"; reason: string }
+		> => {
+			const current = await loadMailboxAgentSettings(env, mailboxId);
+			const [box] = await db.select({ autoReplyEnabled: mailboxes.autoReplyEnabled }).from(mailboxes).where(eq(mailboxes.id, mailboxId)).limit(1);
+			const [fresh] = await db.select({
+				status: messages.status,
+				folderId: messages.folderId,
+				createdAt: messages.createdAt,
+			}).from(messages).where(eq(messages.id, source.id)).limit(1);
+			const [newer] = fresh
+				? await db.select({ id: messages.id }).from(messages).where(and(
+					eq(messages.mailboxId, mailboxId),
+					eq(messages.threadId, threadId),
+					gt(messages.createdAt, fresh.createdAt),
+					or(eq(messages.direction, "inbound"), and(eq(messages.direction, "outbound"), eq(messages.status, "sent"))),
+				)).limit(1)
+				: [];
+			const decision = autoSendRecheck({
+				autoSendEnabled: !!current?.autoSendEnabled,
+				outOfOffice: !!box?.autoReplyEnabled,
+				inInbox: !!fresh && fresh.status === "received" && !fresh.folderId,
+				newerActivity: !!newer,
+			});
+			if (decision.action === "send" && current) return { action: "send", settings: current };
+			if (decision.action === "skip") return decision;
+			return { action: "defer" };
+		};
+
+		const opening = await readSendWindow();
+		if (opening.action !== "send") return opening;
+		if (!opening.settings.knowledge.trim()) return escalate("no-knowledge");
+
+		const selection = await getAgentModel(env, opening.settings.modelId);
 		if (!selection) return escalate("no-model");
 		let generated;
 		try {
 			generated = await generateText({
 				model: selection.model,
-				system: classifierSystemPrompt(settings.knowledge, settings.instructions),
+				system: classifierSystemPrompt(opening.settings.knowledge, opening.settings.instructions),
 				prompt: classifierUserPrompt({ from: source.fromAddr, subject: source.subject ?? "", body }),
 				maxOutputTokens: 800,
 			});
@@ -199,22 +239,6 @@ export async function tryAutoSend(env: CloudflareEnv, input: {
 		await recordAiUsage({ env, details: selection, usage: generated.usage, source: "auto_send" });
 		const verdict = interpretClassifierOutput(generated.text ?? "", `${source.subject ?? ""}\n${body}`);
 		if (verdict.action !== "send") return escalate(verdict.reason);
-		const finalized = finalizeAutoReply(verdict.reply, settings.knowledge, settings.autoSendFooter);
-		if (finalized.action !== "send") return escalate(finalized.reason);
-		const parts = splitDisclosureFooter(finalized.reply, settings.autoSendFooter);
-		const formatted = formatAgentDraftBody(parts.answer);
-		if (!formatted.text) return escalate("empty-reply");
-		const rendered = renderAutoReplyEmail({
-			answer: formatted.text,
-			allowedText: settings.knowledge,
-			brand: {
-				signature: settings.autoSendSignature,
-				logoUrl: settings.autoSendLogoUrl,
-				accentColor: settings.autoSendAccent,
-				footer: parts.footer,
-			},
-			quote: { from: source.fromAddr, sentAt: source.createdAt, text: body },
-		});
 
 		let recipients: { to: string; cc: string };
 		try {
@@ -225,6 +249,27 @@ export async function tryAutoSend(env: CloudflareEnv, input: {
 		}
 		const [domain] = await db.select({ hostname: domains.hostname }).from(domains).where(eq(domains.id, mailbox.domainId)).limit(1);
 		if (!domain) return escalate("no-mailbox");
+
+		const latest = await readSendWindow();
+		if (latest.action !== "send") return latest;
+		if (!latest.settings.knowledge.trim()) return escalate("no-knowledge");
+		const active = latest.settings;
+		const finalized = finalizeAutoReply(verdict.reply, active.knowledge, active.autoSendFooter);
+		if (finalized.action !== "send") return escalate(finalized.reason);
+		const parts = splitDisclosureFooter(finalized.reply, active.autoSendFooter);
+		const formatted = formatAgentDraftBody(parts.answer);
+		if (!formatted.text) return escalate("empty-reply");
+		const rendered = renderAutoReplyEmail({
+			answer: formatted.text,
+			allowedText: active.knowledge,
+			brand: {
+				signature: active.autoSendSignature,
+				logoUrl: active.autoSendLogoUrl,
+				accentColor: active.autoSendAccent,
+				footer: parts.footer,
+			},
+			quote: { from: source.fromAddr, sentAt: source.createdAt, text: body },
+		});
 
 		const claimId = newId("asend");
 		try {

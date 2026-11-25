@@ -1,6 +1,6 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, gt, inArray, notExists } from "drizzle-orm";
 import type { AppDatabase } from "@/db";
-import { agentEscalations } from "@/db/schema";
+import { agentAutoSends, agentEscalations, messages } from "@/db/schema";
 import { isMissingTableError, isUniqueConstraintError } from "@/lib/database-errors";
 import { selectInBatches } from "@/lib/db-params";
 import { newId } from "@/lib/ids";
@@ -13,6 +13,23 @@ export function escalationKey(row: EscalationRow): string {
 	return `${row.mailboxId}:${row.threadId ?? row.id}`;
 }
 
+/**
+ * A later outbound message a person actually sent closes the flag.
+ * An automatic reply is recorded on `agent_auto_sends` and does not.
+ */
+function escalationStillOpen(db: AppDatabase) {
+	return notExists(
+		db.select({ id: messages.id }).from(messages).where(and(
+			eq(messages.mailboxId, agentEscalations.mailboxId),
+			eq(messages.threadId, agentEscalations.threadId),
+			eq(messages.direction, "outbound"),
+			eq(messages.status, "sent"),
+			gt(messages.createdAt, agentEscalations.createdAt),
+			notExists(db.select({ id: agentAutoSends.id }).from(agentAutoSends).where(eq(agentAutoSends.sentMessageId, messages.id))),
+		)),
+	);
+}
+
 /** Thread keys (`mailboxId:threadId`) that a person still needs to answer. Missing table means none. */
 export async function escalatedThreadKeys(db: AppDatabase, rows: EscalationRow[]): Promise<Set<string>> {
 	const keys = [...new Set(rows.map((row) => row.threadId || row.id).filter((key): key is string => !!key))];
@@ -22,7 +39,11 @@ export async function escalatedThreadKeys(db: AppDatabase, rows: EscalationRow[]
 		const found = await selectInBatches(keys, (batch) => db
 			.select({ mailboxId: agentEscalations.mailboxId, threadId: agentEscalations.threadId })
 			.from(agentEscalations)
-			.where(and(inArray(agentEscalations.mailboxId, mailboxIds), inArray(agentEscalations.threadId, batch))));
+			.where(and(
+				inArray(agentEscalations.mailboxId, mailboxIds),
+				inArray(agentEscalations.threadId, batch),
+				escalationStillOpen(db),
+			)));
 		return new Set(found.map((row) => `${row.mailboxId}:${row.threadId}`));
 	} catch (error) {
 		if (isMissingTableError(error)) return new Set();
@@ -38,7 +59,11 @@ export async function messageNeedsHuman(db: AppDatabase, mailboxId: string | nul
 		const [row] = await db
 			.select({ id: agentEscalations.id })
 			.from(agentEscalations)
-			.where(and(eq(agentEscalations.mailboxId, mailboxId), inArray(agentEscalations.threadId, keys)))
+			.where(and(
+				eq(agentEscalations.mailboxId, mailboxId),
+				inArray(agentEscalations.threadId, keys),
+				escalationStillOpen(db),
+			))
 			.limit(1);
 		return !!row;
 	} catch (error) {

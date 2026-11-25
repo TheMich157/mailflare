@@ -234,3 +234,13 @@ test("the branded reply is a table layout with a plain-text alternative and a qu
 	assert.doesNotMatch(hostile.html, /<img/);
 	assert.doesNotMatch(hostile.html, /href="https:\/\/evil\.example/);
 });
+
+test("a send is withheld when the thread, inbox, or settings changed", () => {
+	const open = { autoSendEnabled: true, outOfOffice: false, inInbox: true, newerActivity: false };
+	assert.deepEqual(auto.autoSendRecheck(open), { action: "send" });
+	assert.equal(auto.autoSendRecheck({ ...open, newerActivity: true }).action, "skip");
+	assert.equal(auto.autoSendRecheck({ ...open, outOfOffice: true }).action, "skip");
+	assert.equal(auto.autoSendRecheck({ ...open, inInbox: false }).action, "skip");
+	assert.deepEqual(auto.autoSendRecheck({ ...open, autoSendEnabled: false }), { action: "defer" });
+	assert.equal(auto.autoSendRecheck({ ...open, autoSendEnabled: false, newerActivity: true }).action, "skip");
+});
