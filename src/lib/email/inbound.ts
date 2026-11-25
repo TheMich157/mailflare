@@ -34,6 +34,7 @@ import {
 	notifyUsersOfNewMessage,
 } from "@/lib/realtime/utils";
 import { scheduleAutoDraft } from "@/lib/agent/jobs/utils";
+import { messageNeedsHuman } from "@/lib/agent/escalations";
 import { isSilentPromotion } from "@/lib/promotions/mode-utils";
 import { loadPromotionModes, type PromotionMode } from "@/lib/promotions/settings";
 import { buildNewMessageNotification } from "@/lib/email/inbound-notification";
@@ -375,7 +376,7 @@ export async function getMessageWithBodyForUser(env: CloudflareEnv, user: Sessio
 	if (!message?.mailboxId || isOthersDraft(message, user.id)) return null;
 	const access = await getMailboxAccessLevel(db, user, message.mailboxId);
 	if (!access?.canRead) return null;
-	const [scheduledJob, contactNames, attachments, unsubscribe] = await Promise.all([
+	const [scheduledJob, contactNames, attachments, unsubscribe, needsHuman] = await Promise.all([
 		message.direction === "outbound" && message.status === "queued"
 			? db
 				.select({ scheduledAt: outboundJobs.scheduledAt })
@@ -386,11 +387,12 @@ export async function getMessageWithBodyForUser(env: CloudflareEnv, user: Sessio
 		getMessageContactNames(env, message.userId, message.fromAddr, message.toAddr),
 		listMessageAttachments(env, messageId),
 		getUnsubscribeUrlFromRawR2Key(env, message.rawR2Key),
+		messageNeedsHuman(db, message.mailboxId, message.threadId, message.id),
 	]);
 	const { rawR2Key, textBody, htmlBody, ...header } = message;
 	void rawR2Key;
 	return {
-		message: { ...header, ...contactNames },
+		message: { ...header, ...contactNames, ...(needsHuman ? { needsHuman: true } : {}) },
 		body: { textBody: textBody ?? null, htmlBody: htmlBody ?? null },
 		attachments,
 		unsubscribeUrl: unsubscribe?.url ?? null,

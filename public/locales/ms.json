@@ -2982,5 +2982,17 @@
 	"domains.forceRemoveConfirm": "{reason}\n\nTetap mahu alih keluar {host} secara paksa? Mailflare akan cuba mengalih keluar rekod DNS _mta-sts dan _smtp._tls, kemudian memadam domain, semua peti mel di dalamnya dan semua mesejnya, walaupun pengalihan rekod gagal. Pelayan mel mungkin terus menggunakan dasar MTA-STS yang disimpan dalam cache untuk seketika. Selepas itu anda akan menerima senarai rekod DNS yang perlu dialih keluar secara manual.\n\nTaip {host} untuk mengesahkan.",
 	"domains.forceRemoved": "{host} telah dialih keluar",
 	"domains.forceRemovedRecords": "Alih keluar sendiri rekod DNS ini:",
-	"domains.forceRemovedCache": "Pelayan mel mungkin terus menggunakan dasar MTA-STS lama sehingga {date}."
+	"domains.forceRemovedCache": "Pelayan mel mungkin terus menggunakan dasar MTA-STS lama sehingga {date}.",
+	"list.needsHuman": "Needs a person",
+	"message.needsHuman": "This conversation was left for a person. The assistant did not send an automatic reply.",
+	"agent.panel.autoSend": "Automatically send basic replies",
+	"agent.panel.autoSendHint": "The assistant sends a reply only for a simple question covered by the knowledge text. Payments, licenses, account access, legal requests and anything uncertain are flagged for a person. Turn on automatic drafts as well if you want a draft waiting on those.",
+	"agent.panel.knowledge": "Knowledge and FAQ",
+	"agent.panel.knowledgeHint": "Facts the assistant may use. It will not answer from anything else.",
+	"agent.panel.autoSendSignature": "Signature",
+	"agent.panel.autoSendLogo": "Logo URL",
+	"agent.panel.autoSendLogoHint": "Optional https address of a logo. Other addresses are ignored.",
+	"agent.panel.autoSendAccent": "Accent color",
+	"agent.panel.autoSendFooter": "Disclosure footer",
+	"agent.panel.autoSendFooterHint": "Leave empty for the default note that the reply came from an AI assistant and that replying “human” reaches a person."
 }

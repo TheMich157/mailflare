@@ -1,8 +1,8 @@
-import { and, desc, eq, gt, gte, lt, lte, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, gte, isNotNull, lt, lte, ne, notInArray, or, sql } from "drizzle-orm";
 import { generateText } from "ai";
 import { getDb } from "@/db";
 import { schemaDialect } from "@/db/dialect";
-import { agentDraftMetadata, agentJobs, mailboxAgentSettings, mailboxes, messages, users } from "@/db/schema";
+import { agentDraftMetadata, agentJobs, mailboxAgentSettings, domains, mailboxes, messages, users } from "@/db/schema";
 import { draftsVisibleTo } from "@/lib/email/draft-access";
 import { getMailboxAccessLevel } from "@/lib/mailboxes/access";
 import { normalizeEmailAddress } from "@/lib/email/address";
@@ -15,6 +15,8 @@ import { agentProviderErrorMessage } from "../errors";
 import { runEmailTool } from "../tools";
 import { notifyUsersOfNewMessage } from "@/lib/realtime/utils";
 import { getMailboxDomainAddresses } from "@/lib/mailboxes/domain-addresses";
+import { loadMailboxAgentSettings, tryAutoSend } from "../auto-send";
+import { gateInboundAutoSend } from "../auto-send-utils";
 
 export type AgentDraftQueueMessage = { kind: "agent.draft"; jobId: string };
 
@@ -26,13 +28,31 @@ function isAutomaticMessage(from: string, headers?: Record<string, string>) {
 }
 
 export async function scheduleAutoDraft(env: CloudflareEnv, input: { mailboxId: string; sourceMessageId: string; ownerUserId: string; sender: string; headers?: Record<string, string>; status: string; folderId: string | null; spamVerdict?: string | null; spamAnalysisError?: string | null }) {
-	if (input.status !== "received" || input.folderId || input.spamAnalysisError || (input.spamVerdict && input.spamVerdict !== "inbox") || isAutomaticMessage(input.sender, input.headers)) return;
 	if (!await getAgentEnabled(env)) return;
 	const db = getDb(env);
-	const [settings] = await db.select().from(mailboxAgentSettings).where(eq(mailboxAgentSettings.mailboxId, input.mailboxId)).limit(1);
+	const settings = await loadMailboxAgentSettings(env, input.mailboxId);
 	const [mailbox] = await db.select().from(mailboxes).where(eq(mailboxes.id, input.mailboxId)).limit(1);
-	if (mailbox && (await getMailboxDomainAddresses(db, mailbox)).includes(normalizeEmailAddress(input.sender))) return;
-	if (!settings?.autoDraftEnabled || mailbox?.autoReplyEnabled) return;
+	if (!settings || (!settings.autoDraftEnabled && !settings.autoSendEnabled) || mailbox?.autoReplyEnabled) return;
+	const ownAddresses = mailbox ? await getMailboxDomainAddresses(db, mailbox) : [];
+	if (settings.autoSendEnabled) {
+		const domainRows = await db.select({ hostname: domains.hostname }).from(domains);
+		const gate = gateInboundAutoSend({
+			from: input.sender,
+			headers: input.headers,
+			status: input.status,
+			folderId: input.folderId,
+			spamVerdict: input.spamVerdict,
+			spamAnalysisError: input.spamAnalysisError,
+			ownAddresses,
+			ownDomains: domainRows.map((row) => row.hostname),
+			// The body is judged again in the job. A placeholder keeps an empty check from dropping the message here.
+			subject: "message",
+			body: "message",
+		});
+		if (gate.action === "skip") return;
+	} else if (input.status !== "received" || input.folderId || input.spamAnalysisError || (input.spamVerdict && input.spamVerdict !== "inbox") || isAutomaticMessage(input.sender, input.headers) || ownAddresses.includes(normalizeEmailAddress(input.sender))) {
+		return;
+	}
 	const reviewerUserId = settings.reviewerUserId || input.ownerUserId;
 	const [reviewer] = await db.select().from(users).where(eq(users.id, reviewerUserId)).limit(1);
 	if (!reviewer || reviewer.disabled || !(await getMailboxAccessLevel(db, reviewer, input.mailboxId))?.canSendOnBehalf) return;
@@ -66,15 +86,27 @@ export async function processAgentDraftJob(env: CloudflareEnv, jobId: string) {
 	const skip = async (reason: string) => db.update(agentJobs).set({ status: "skipped", reason, leaseUntil: null }).where(eq(agentJobs.id, jobId));
 	try {
 		if (!await getAgentEnabled(env)) return void await skip("Assistant disabled");
-		const [settings] = await db.select().from(mailboxAgentSettings).where(eq(mailboxAgentSettings.mailboxId, job.mailboxId)).limit(1);
+		const settings = await loadMailboxAgentSettings(env, job.mailboxId);
 		const [source] = await db.select().from(messages).where(eq(messages.id, job.sourceMessageId)).limit(1);
 		const [reviewer] = await db.select().from(users).where(eq(users.id, job.reviewerUserId)).limit(1);
-		if (!settings?.autoDraftEnabled || !source || source.status !== "received" || !reviewer || reviewer.disabled) return void await skip("Settings, source, or reviewer changed");
+		if (!settings || (!settings.autoDraftEnabled && !settings.autoSendEnabled) || !source || source.status !== "received" || !reviewer || reviewer.disabled) return void await skip("Settings, source, or reviewer changed");
 		if (!(await getMailboxAccessLevel(db, reviewer, job.mailboxId))?.canSendOnBehalf) return void await skip("Reviewer lost send permission");
 		const [mailbox] = await db.select({ autoReplyEnabled: mailboxes.autoReplyEnabled }).from(mailboxes).where(eq(mailboxes.id, job.mailboxId)).limit(1);
 		if (mailbox?.autoReplyEnabled) return void await skip("Out-of-office reply is enabled");
+		if (settings.autoSendEnabled) {
+			const outcome = await tryAutoSend(env, { mailboxId: job.mailboxId, source, settings, reviewer });
+			if (outcome.action === "sent") {
+				await db.update(agentJobs).set({ status: "completed", reason: "Sent automatically", leaseUntil: null }).where(eq(agentJobs.id, jobId));
+				return;
+			}
+			if (outcome.action === "skip") return void await skip(outcome.reason);
+			if (!settings.autoDraftEnabled) {
+				await db.update(agentJobs).set({ status: "completed", reason: `Escalated: ${outcome.reason}`.slice(0, 300), leaseUntil: null }).where(eq(agentJobs.id, jobId));
+				return;
+			}
+		}
 		const since = new Date(); since.setUTCHours(0, 0, 0, 0);
-		const [usage] = await db.select({ count: sql<number>`count(*)` }).from(agentJobs).where(and(eq(agentJobs.mailboxId, job.mailboxId), eq(agentJobs.status, "completed"), gte(agentJobs.createdAt, since)));
+		const [usage] = await db.select({ count: sql<number>`count(*)` }).from(agentJobs).where(and(eq(agentJobs.mailboxId, job.mailboxId), eq(agentJobs.status, "completed"), isNotNull(agentJobs.draftId), gte(agentJobs.createdAt, since)));
 		if ((usage?.count ?? 0) >= settings.dailyLimit) return void await skip("Daily draft limit reached");
 		const [already] = await db.select({ draftId: agentDraftMetadata.draftId }).from(agentDraftMetadata).where(eq(agentDraftMetadata.sourceMessageId, source.id)).limit(1);
 		if (already) {

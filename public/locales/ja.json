@@ -2968,5 +2968,17 @@
 	"domains.forceRemoveConfirm": "{reason}\n\nそれでも {host} を強制削除しますか？ Mailflare は DNS レコード _mta-sts と _smtp._tls の削除を試み、その後、ドメイン、そのすべてのメールボックスとすべてのメッセージを、削除に失敗した場合でも削除します。メールサーバーはキャッシュされた MTA-STS ポリシーをしばらく適用し続ける場合があります。削除後に、手動で削除する DNS レコードの一覧が表示されます。\n\n確認のため {host} と入力してください。",
 	"domains.forceRemoved": "{host} を削除しました",
 	"domains.forceRemovedRecords": "次の DNS レコードは手動で削除してください:",
-	"domains.forceRemovedCache": "メールサーバーは {date} まで古い MTA-STS ポリシーを適用し続ける場合があります。"
+	"domains.forceRemovedCache": "メールサーバーは {date} まで古い MTA-STS ポリシーを適用し続ける場合があります。",
+	"list.needsHuman": "Needs a person",
+	"message.needsHuman": "This conversation was left for a person. The assistant did not send an automatic reply.",
+	"agent.panel.autoSend": "Automatically send basic replies",
+	"agent.panel.autoSendHint": "The assistant sends a reply only for a simple question covered by the knowledge text. Payments, licenses, account access, legal requests and anything uncertain are flagged for a person. Turn on automatic drafts as well if you want a draft waiting on those.",
+	"agent.panel.knowledge": "Knowledge and FAQ",
+	"agent.panel.knowledgeHint": "Facts the assistant may use. It will not answer from anything else.",
+	"agent.panel.autoSendSignature": "Signature",
+	"agent.panel.autoSendLogo": "Logo URL",
+	"agent.panel.autoSendLogoHint": "Optional https address of a logo. Other addresses are ignored.",
+	"agent.panel.autoSendAccent": "Accent color",
+	"agent.panel.autoSendFooter": "Disclosure footer",
+	"agent.panel.autoSendFooterHint": "Leave empty for the default note that the reply came from an AI assistant and that replying “human” reaches a person."
 }

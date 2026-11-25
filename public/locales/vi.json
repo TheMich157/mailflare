@@ -2968,5 +2968,17 @@
 	"domains.forceRemoveConfirm": "{reason}\n\nVẫn xóa cưỡng bức {host}? Mailflare sẽ thử gỡ các bản ghi DNS _mta-sts và _smtp._tls, rồi xóa tên miền, mọi hộp thư trong đó và toàn bộ thư, kể cả khi việc gỡ bản ghi thất bại. Máy chủ thư có thể vẫn áp dụng chính sách MTA-STS đã lưu trong bộ nhớ đệm thêm một thời gian. Sau đó bạn sẽ nhận danh sách các bản ghi DNS cần tự gỡ.\n\nNhập {host} để xác nhận.",
 	"domains.forceRemoved": "Đã xóa {host}",
 	"domains.forceRemovedRecords": "Hãy tự gỡ các bản ghi DNS sau:",
-	"domains.forceRemovedCache": "Máy chủ thư có thể vẫn áp dụng chính sách MTA-STS cũ đến hết {date}."
+	"domains.forceRemovedCache": "Máy chủ thư có thể vẫn áp dụng chính sách MTA-STS cũ đến hết {date}.",
+	"list.needsHuman": "Needs a person",
+	"message.needsHuman": "This conversation was left for a person. The assistant did not send an automatic reply.",
+	"agent.panel.autoSend": "Automatically send basic replies",
+	"agent.panel.autoSendHint": "The assistant sends a reply only for a simple question covered by the knowledge text. Payments, licenses, account access, legal requests and anything uncertain are flagged for a person. Turn on automatic drafts as well if you want a draft waiting on those.",
+	"agent.panel.knowledge": "Knowledge and FAQ",
+	"agent.panel.knowledgeHint": "Facts the assistant may use. It will not answer from anything else.",
+	"agent.panel.autoSendSignature": "Signature",
+	"agent.panel.autoSendLogo": "Logo URL",
+	"agent.panel.autoSendLogoHint": "Optional https address of a logo. Other addresses are ignored.",
+	"agent.panel.autoSendAccent": "Accent color",
+	"agent.panel.autoSendFooter": "Disclosure footer",
+	"agent.panel.autoSendFooterHint": "Leave empty for the default note that the reply came from an AI assistant and that replying “human” reaches a person."
 }

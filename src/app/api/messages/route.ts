@@ -18,6 +18,7 @@ import { getMessageListColumns, loadConversationPage } from "./utils";
 import type { ListMessage } from "./types";
 import { getOpenCounts } from "@/lib/tracking/open-tracking";
 import { summarizeNotesForRows } from "@/lib/notes/service";
+import { escalatedThreadKeys, escalationKey } from "@/lib/agent/escalations";
 import { isMissingTableError } from "@/lib/database-errors";
 import { parseLimit, parseOffset } from "@/lib/api/query-params";
 import { draftsVisibleTo } from "@/lib/email/draft-access";
@@ -232,6 +233,7 @@ export async function GET(request: Request) {
 		]),
 	);
 	const contactMapsByUserId = new Map(contactMaps);
+	const needsHuman = await escalatedThreadKeys(db, rows);
 	// `Message.textBody`/`htmlBody` are optional on the wire type and the
 	// reading pane loads them from /api/messages/[id]/thread, so they are
 	// neither selected nor sent here.
@@ -247,6 +249,7 @@ export async function GET(request: Request) {
 			...(scheduledAtByMessageId.has(message.id) ? { scheduledAt: scheduledAtByMessageId.get(message.id) } : {}),
 			...(openCounts.has(message.id) ? { openCount: openCounts.get(message.id) } : {}),
 			...(noteSummaries.has(message.id) ? { noteCount: noteSummaries.get(message.id)!.count, notePreview: noteSummaries.get(message.id)!.preview } : {}),
+			...(needsHuman.has(escalationKey(message)) ? { needsHuman: true } : {}),
 			fromContactName:
 				(message.direction === "outbound" ? accountName : null) ??
 				getPartyDisplayName(message.fromAddr, contactMap?.get(normalizeEmailAddress(message.fromAddr))),

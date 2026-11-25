@@ -43,6 +43,8 @@ export type Message = {
 	/** Notes on the conversation, with the text of the latest ones; absent when it has none. */
 	noteCount?: number;
 	notePreview?: string;
+	/** The assistant left this conversation for a person instead of sending. */
+	needsHuman?: boolean;
 	threadId: string | null;
 	inReplyTo?: string | null;
 	references?: string | null;

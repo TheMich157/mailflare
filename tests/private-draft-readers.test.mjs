@@ -8,7 +8,7 @@ import { loadApp, sharedMailboxSeed } from "./helpers/real-db.mjs";
 const mocks = {
 	"@/lib/cloudflare": "export function getEnv(){return globalThis.prEnv}",
 	"@/lib/auth/cookies": "export async function getCurrentUser(){return globalThis.prUser} export async function requireUser(){return globalThis.prUser}",
-	ai: "export async function generateText(o){globalThis.prPrompt=o.prompt;return {text:''}}",
+	ai: "export async function generateText(o){globalThis.prPrompt=o.prompt;return {text:''}} export function defaultSettingsMiddleware(){return {}} export function wrapLanguageModel(options){return options.model}",
 	"../model": "export async function getAgentModel(){return {model:{}}}",
 	"../provider": "export async function getAgentEnabled(){return true}",
 	"../tools": "export async function runEmailTool(){return {draftId:'x'}}",

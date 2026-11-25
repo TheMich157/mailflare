@@ -183,6 +183,9 @@ function MessageListRowComponent({
 	const promotionChip = showsPromotionChip({ folder: config.folder, folderId: config.folderId, mode: promotionMode, category: message.category })
 		? <span className="ms-2 inline-flex shrink-0 items-center rounded-md bg-amber-50 px-1.5 text-[11px] font-medium leading-5 text-amber-800 ring-1 ring-inset ring-amber-200">{t("promotions.chip")}</span>
 		: null;
+	const needsHumanChip = message.needsHuman
+		? <span className="ms-2 inline-flex shrink-0 items-center rounded-md bg-rose-50 px-1.5 text-[11px] font-medium leading-5 text-rose-800 ring-1 ring-inset ring-rose-200">{t("list.needsHuman")}</span>
+		: null;
 
 	const swipeable = compact && (config.folder === "inbox" || config.folder === "snoozed") && message.direction === "inbound";
 
@@ -248,6 +251,7 @@ function MessageListRowComponent({
 							)}
 							<NoteBadge count={message.noteCount} className="ml-2" />
 							{promotionChip}
+							{needsHumanChip}
 						</span>
 						<span className={clsx(unread ?"font-medium":"text-neutral-500","shrink-0 text-[11px]")}>
 							<OpenedIndicator count={message.openCount} />
@@ -356,6 +360,7 @@ function MessageListRowComponent({
 					<span className="text-neutral-500"> - {getMessagePreview(rowMessage, config.folder, t)}</span>
 				</Link>
 				{promotionChip}
+				{needsHumanChip}
 			</span>
 			<time
 				dateTime={message.createdAt}
