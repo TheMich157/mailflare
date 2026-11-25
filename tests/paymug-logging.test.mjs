@@ -2,37 +2,50 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { loadApp } from "./helpers/real-db.mjs";
 
-const { app } = await loadApp("paymug-logging", `export { callPaymugLicenseApi } from "./src/lib/licenses/paymug.ts";`);
-const input = { licenseKey: "LICENSE-SECRET-KEY-123", productId: "p", instanceId: "i", instanceUrl: "https://mail.example.com", appVersion: "0.5.5" };
+const { app, newDatabase } = await loadApp("open-entitlements", `
+	export { getLicenseEntitlements, getLicenseStatus, activateLicense, validateLicense, deactivateLicense } from "./src/lib/licenses/service.ts";
+	export { getAccountSeatError } from "./src/lib/licenses/seats.ts";
+	export { isTeamMailboxSharingEnabled } from "./src/lib/mailboxes/access-utils.ts";
+`);
 
-function capture(t, response) {
-	const logged = [];
+const fullEntitlements = {
+	plan: "team",
+	canCustomizeBranding: true,
+	canManageAccounts: true,
+	canShareMailboxes: true,
+	accountSeatLimit: null,
+	canForwardEmail: true,
+};
+
+test("a community license with a seat cap does not limit features or contact a license server", async (t) => {
+	const { env, db } = await newDatabase(t, `
+		INSERT INTO license_settings (id, instance_id, plan, state, seat_limit, features, updated_at)
+		VALUES ('default', 'inst', 'community', 'inactive', 1, '[]', 1);
+	`);
+	const calls = [];
 	const realFetch = globalThis.fetch;
-	const originals = {};
-	for (const level of ["log", "info", "warn", "error", "debug"]) {
-		originals[level] = console[level];
-		console[level] = (...args) => logged.push(args.map(String).join(" ") + JSON.stringify(args));
-	}
-	globalThis.fetch = async () => response;
-	t.after(() => {
-		globalThis.fetch = realFetch;
-		Object.assign(console, originals);
-	});
-	return logged;
-}
+	globalThis.fetch = async (...args) => {
+		calls.push(String(args[0]));
+		return realFetch(...args);
+	};
+	t.after(() => { globalThis.fetch = realFetch; });
 
-test("the license key and the response are never logged", async (t) => {
-	const logged = capture(t, Response.json({ valid: true, secret: "RESPONSE-BODY-MARKER" }, { status: 200 }));
-	await app.callPaymugLicenseApi("activate", input).catch(() => undefined);
-	assert.deepEqual(logged.filter((line) => /LICENSE-SECRET-KEY-123|RESPONSE-BODY-MARKER/.test(line)), []);
+	assert.deepEqual(await app.getLicenseEntitlements(env), fullEntitlements);
+	const status = await app.getLicenseStatus(env);
+	assert.equal(status.active, true);
+	assert.equal(status.plan, "team");
+	assert.equal(status.seatLimit, null);
+	assert.equal(await app.getAccountSeatError(env), null);
+	assert.equal(await app.isTeamMailboxSharingEnabled(db), true);
+	assert.equal((await app.activateLicense(env, "LICENSE-SECRET-KEY-123", "https://mail.example.com", "pro")).active, true);
+	assert.equal((await app.validateLicense(env, "LICENSE-SECRET-KEY-123", "https://mail.example.com")).active, true);
+	assert.equal((await app.deactivateLicense(env)).active, true);
+	assert.deepEqual(calls, []);
 });
 
-test("a non-JSON 502 reports Paymug as unavailable instead of a SyntaxError", async (t) => {
-	capture(t, new Response("<html>Bad gateway</html>", { status: 502, headers: { "content-type": "text/html" } }));
-	await assert.rejects(app.callPaymugLicenseApi("validate", input), /Paymug is temporarily unavailable/);
-});
-
-test("a non-JSON 200 is an invalid license response", async (t) => {
-	capture(t, new Response("not json", { status: 200 }));
-	await assert.rejects(app.callPaymugLicenseApi("validate", input), /invalid license response/);
+test("missing license settings still entitle every feature", async (t) => {
+	const { env, db } = await newDatabase(t);
+	assert.deepEqual(await app.getLicenseEntitlements(env), fullEntitlements);
+	assert.equal(await app.getAccountSeatError(env), null);
+	assert.equal(await app.isTeamMailboxSharingEnabled(db), true);
 });

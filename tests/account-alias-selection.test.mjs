@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import test, { after } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -8,6 +8,8 @@ import { build } from "esbuild";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const directory = mkdtempSync(join(root, "node_modules", "mailflare-account-test-"));
 after(() => rmSync(directory, { recursive: true, force: true }));
+const headersStub = join(directory, "next-headers-stub.mjs");
+writeFileSync(headersStub, "export async function cookies() { return { get() { return undefined; } }; }\n");
 await build({
 	stdin: {
 		contents: `
@@ -17,7 +19,8 @@ await build({
 			export { createSession } from "./src/lib/auth/session.ts";
 			export { generateApiKey } from "./src/lib/api-keys.ts";
 			export { createUserAccountSchema } from "./src/lib/validators.ts";
-			export { POST as dashboardCreate } from "./src/app/api/accounts/route.ts";
+			export { GET as dashboardList, POST as dashboardCreate } from "./src/app/api/accounts/route.ts";
+			export { POST as login } from "./src/app/api/auth/login/route.ts";
 			export { POST as apiCreate } from "./src/app/api/v1/accounts/route.ts";
 			export { registerAdminMcpTools } from "./src/lib/mcp/admin-tools.ts";
 			export { getMailboxDomainAddresses } from "./src/lib/mailboxes/domain-addresses.ts";
@@ -34,12 +37,12 @@ await build({
 	target: "node24",
 	tsconfig: join(root, "tsconfig.json"),
 	packages: "external",
-	alias: { "next/headers": "next/headers.js", "next/server": "next/server.js", "cloudflare:workers": "./server/runtime/cloudflare-workers.ts" },
+	alias: { "next/headers": headersStub, "next/server": "next/server.js", "cloudflare:workers": "./server/runtime/cloudflare-workers.ts" },
 	logLevel: "silent",
 });
 const {
 	SqliteDatabase, applyMigrations, getDb, createSession, generateApiKey, createUserAccountSchema,
-	dashboardCreate, apiCreate, registerAdminMcpTools, getMailboxDomainAddresses, resolveInboundAddress, getAuthorizedSenderAddress,
+	dashboardCreate, dashboardList, apiCreate, login, registerAdminMcpTools, getMailboxDomainAddresses, resolveInboundAddress, getAuthorizedSenderAddress,
 } = await import(pathToFileURL(join(directory, "entry.mjs")).href);
 const key = await generateApiKey();
 
@@ -104,7 +107,15 @@ async function fixture(t, { rules = [], failAddress, slowAddress } = {}) {
 		const row = database.db.prepare("SELECT * FROM mailboxes WHERE local_part = 'sam'").get();
 		return row && { id: row.id, userId: row.user_id, domainId: row.domain_id, localPart: row.local_part, useAllDomains: !!row.use_all_domains };
 	};
-	return { database, env, db: getDb(env), post, mailbox, calls, currentRules };
+	const list = () => dashboardList(new Request("https://mailflare.test/api/accounts", {
+		headers: { Authorization: `Bearer ${session}` },
+	}));
+	const signIn = (email, password = "test-password") => login(new Request("https://mailflare.test/api/auth/login", {
+		method: "POST",
+		headers: { "Content-Type": "application/json", Origin: "https://mailflare.test" },
+		body: JSON.stringify({ email, password }),
+	}));
+	return { database, env, db: getDb(env), post, mailbox, list, signIn, calls, currentRules };
 }
 
 for (const kind of ["dashboard", "api"]) {
@@ -232,28 +243,37 @@ for (const enabled of [true, false]) {
 	});
 }
 
-test("account creation still enforces admin authorization and the Team license", async (t) => {
+test("account creation still enforces admin authorization without a license", async (t) => {
 	const f = await fixture(t);
 	assert.equal((await f.post("api", {}, "invalid-test-key")).status, 401);
 	assert.equal((await f.post("dashboard", {}, "invalid-test-session")).status, 403);
-	f.database.db.exec("UPDATE license_settings SET state = 'inactive'");
-	assert.equal((await f.post("api")).status, 403);
-	assert.equal((await f.post("dashboard")).status, 403);
-	assert.equal(f.calls.length, 0);
+	f.database.db.exec("UPDATE license_settings SET plan = 'community', state = 'inactive', seat_limit = 1");
+	assert.equal((await f.post("api", { username: "open-api" })).status, 201);
+	assert.equal((await f.post("dashboard", { username: "open-dash" })).status, 201);
+	assert.ok(f.calls.some((call) => call.method === "POST"));
 });
 
-test("a Pro license creates accounts only while seats remain; Team and unlimited Pro have no limit", async (t) => {
+test("an admin can create unlimited accounts with email and password, and those accounts can sign in", async (t) => {
 	const f = await fixture(t);
-	const users = () => f.database.db.prepare("SELECT count(*) AS count FROM users WHERE disabled = 0").get().count;
-	f.database.db.exec(`UPDATE license_settings SET plan = 'pro', seat_limit = ${users()}`);
-	assert.equal((await f.post("api")).status, 403, "no seat left");
-	f.database.db.exec(`UPDATE license_settings SET seat_limit = ${users() + 1}`);
-	assert.equal((await f.post("api", { username: "seat-one" })).status, 201);
-	assert.equal((await f.post("api", { username: "seat-two" })).status, 403, "seat just used");
-	f.database.db.exec("UPDATE license_settings SET seat_limit = NULL");
-	assert.equal((await f.post("api", { username: "seat-three" })).status, 201);
-	f.database.db.exec("UPDATE license_settings SET plan = 'team', seat_limit = 1");
-	assert.equal((await f.post("api", { username: "seat-four" })).status, 201);
+	f.database.db.exec("UPDATE license_settings SET plan = 'community', state = 'inactive', seat_limit = 1");
+	const password = "test-password";
+	for (const username of ["ada", "bea", "cy"]) {
+		const created = await f.post("dashboard", { username, password });
+		assert.equal(created.status, 201, username);
+		assert.equal((await created.json()).account.email, `${username}@one.test`);
+		const signedIn = await f.signIn(`${username}@one.test`, password);
+		assert.equal(signedIn.status, 200, username);
+		const body = await signedIn.json();
+		assert.equal(body.ok, true);
+		assert.equal(typeof body.token, "string");
+		assert.equal(body.token.length > 0, true);
+	}
+	const listed = await f.list();
+	assert.equal(listed.status, 200);
+	const payload = await listed.json();
+	assert.equal(payload.seats.limit, null);
+	assert.ok(payload.seats.used >= 5);
+	assert.equal(f.calls.every((call) => call.zoneId), true);
 });
 
 for (const separateDomains of [false, true]) {

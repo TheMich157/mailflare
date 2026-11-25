@@ -195,9 +195,9 @@ Mailbox content authorization goes through `src/lib/mailboxes/access.ts` (`getMa
 
 `messages.status` is a free-text column driving the folder views: `received` (inbox), `sent`, `draft`, `spam`, `trash`, `archived`. Orthogonal to that are `starred`, `snoozedUntil`, and `folderId` (user-created folders in the `folders` table). A "folder" route under `src/app/(dashboard)/` is usually a status filter, not a table. Drafts are private to their author: `draftsVisibleTo` / `isOthersDraft` (`src/lib/email/draft-access.ts`) must gate every reader query. `messages.private_draft` is set when a row is created as a draft (and when a message is moved back to Drafts) and stays set wherever the row goes, so a trashed or filed draft stays private; it is cleared only by a real send or an explicit "sent" (`privateDraftForStatus`); a JMAP folder move is never a send, so `targetFromMailboxIds` keeps a private row off status `sent`. Thread views, conversation counts, Drive attachments and the auto-draft context apply the same predicate, and a backup from before the column derives it on restore like the migration backfill. `messages_nav_cover_idx` and `messages_counts_cover_idx` end with `user_id, private_draft` so the predicate stays on the index (MySQL's 3072-byte key budget drops them). Any select feeding `isOthersDraft` must include `privateDraft` (a missing value counts as private). `draftsVisibleTo` binds one parameter (`DRAFT_FILTER_PARAMS`): size D1 batches as 100 minus the query's fixed parameters, including it.
 
-### Licensing gates branding
+### Licensing
 
-Pro/Team keys are validated against Paymug (`src/lib/licenses/`); only a one-way key hash is stored. Without an active license the app falls back to the default name, icon, and favicon, and custom branding is unavailable. `getLicenseEntitlements` is the gate.
+This fork is always fully entitled. `getLicenseEntitlements` returns every feature and an unlimited seat count, and it does not read `license_settings` or contact a license server. The table remains so existing databases and backups still apply.
 
 ### Self-update
 

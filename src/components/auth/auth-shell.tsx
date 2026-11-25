@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useBranding } from "@/components/branding-provider";
 import { LanguageSelector } from "@/components/language-selector";
+import { SourceCodeLink } from "@/components/source-code-link";
 import type { AuthShellProps } from "./types";
 
 export function AuthShell({
@@ -96,6 +97,9 @@ export function AuthShell({
           </div>
         </section>
       </main>
+      <p className="mx-auto mt-4 max-w-4xl px-7 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-[11px] text-neutral-500 sm:px-0">
+        <SourceCodeLink />
+      </p>
     </div>
   );
 }

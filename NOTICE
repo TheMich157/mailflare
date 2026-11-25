@@ -1,0 +1,29 @@
+Mailflare
+Copyright (C) the original authors of hieunc229/mailflare and contributors.
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This repository (https://github.com/TheMich157/mailflare) is a modified fork of
+https://github.com/hieunc229/mailflare. The original LICENSE file and the
+copyright notices in the source are kept.
+
+Modifications in this fork:
+
+- The installation is always fully entitled. There is no account seat cap.
+- Every feature that upstream gates on a Pro, Team or other paid license is
+  enabled without a license key. That includes account management, shared
+  mailboxes and mailbox sharing, booking hosts, custom branding, and email
+  forwarding.
+- The license activation screen, pricing cards, upgrade banner and Paymug
+  license-validation requests are removed. The app does not contact a license
+  server.
+- The `license_settings` table and its migrations are unchanged and unused.
+- The app shows a Source code link to https://github.com/TheMich157/mailflare,
+  which is the corresponding source for this version (AGPL-3.0 section 13).
+- GitHub Actions publishes the self-hosting Docker image to
+  ghcr.io/themich157/mailflare.
+
+The GNU Affero General Public License, version 3, is in the file LICENSE.
