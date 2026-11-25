@@ -119,6 +119,7 @@ test("custom official endpoint and selected model use OpenAI parameters", async 
 for (const [preset, endpoint, modelId] of [
 	["openrouter", "https://openrouter.ai/api/v1", "openai/gpt-6-luna"],
 	["groq", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile"],
+	["xai", "https://api.x.ai/v1", "grok-4"],
 	["custom", "https://compatible.example/v1", "gpt-6-luna"],
 	["custom", "https://api.openai.com.example/v1", "gpt-6-luna"],
 ]) {

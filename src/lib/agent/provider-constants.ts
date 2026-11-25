@@ -7,4 +7,5 @@ export const PROVIDER_BASE_URLS: Record<Exclude<AgentProviderPreset, "custom">, 
 	anthropic: "https://api.anthropic.com/v1",
 	openrouter: "https://openrouter.ai/api/v1",
 	groq: "https://api.groq.com/openai/v1",
+	xai: "https://api.x.ai/v1",
 };
