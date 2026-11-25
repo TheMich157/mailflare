@@ -3012,5 +3012,17 @@
 	"domains.forceRemoveConfirm": "{reason}\n\nRemover {host} à força mesmo assim? O Mailflare vai tentar remover os registos DNS _mta-sts e _smtp._tls e depois eliminar o domínio, todas as caixas de correio e todas as respetivas mensagens, mesmo que a remoção dos registos falhe. Os servidores de correio podem continuar a aplicar durante algum tempo a política MTA-STS em cache. Depois receberá a lista de registos DNS a remover manualmente.\n\nIntroduza {host} para confirmar.",
 	"domains.forceRemoved": "{host} removido",
 	"domains.forceRemovedRecords": "Remova estes registos DNS por si:",
-	"domains.forceRemovedCache": "Os servidores de correio podem continuar a aplicar a política MTA-STS antiga até {date}."
+	"domains.forceRemovedCache": "Os servidores de correio podem continuar a aplicar a política MTA-STS antiga até {date}.",
+	"list.needsHuman": "Needs a person",
+	"message.needsHuman": "This conversation was left for a person. The assistant did not send an automatic reply.",
+	"agent.panel.autoSend": "Automatically send basic replies",
+	"agent.panel.autoSendHint": "The assistant sends a reply only for a simple question covered by the knowledge text. Payments, licenses, account access, legal requests and anything uncertain are flagged for a person. Turn on automatic drafts as well if you want a draft waiting on those.",
+	"agent.panel.knowledge": "Knowledge and FAQ",
+	"agent.panel.knowledgeHint": "Facts the assistant may use. It will not answer from anything else.",
+	"agent.panel.autoSendSignature": "Signature",
+	"agent.panel.autoSendLogo": "Logo URL",
+	"agent.panel.autoSendLogoHint": "Optional https address of a logo. Other addresses are ignored.",
+	"agent.panel.autoSendAccent": "Accent color",
+	"agent.panel.autoSendFooter": "Disclosure footer",
+	"agent.panel.autoSendFooterHint": "Leave empty for the default note that the reply came from an AI assistant and that replying “human” reaches a person."
 }

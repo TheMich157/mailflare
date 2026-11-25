@@ -15,7 +15,7 @@ export type AgentTurn = { id: string; user: AgentMessage | null; assistant: Agen
 export type AgentDraftAction = { messageId: string; draftId: string; revision: number; scheduledAt: string | null };
 export type AgentTurnProps = { turn: AgentTurn; draftActions: AgentDraftAction[]; onOpenDraft: (draftId: string) => void; onApproveDraft: (draftId: string, revision: number) => void; onApproveAction: (item: AgentMessage) => void; approvingId: string | null };
 
-export type AgentSettings = { mailboxId: string; enabled: boolean; modelId: string | null; autoDraftEnabled: boolean; reviewerUserId: string | null; instructions: string; dailyLimit: number };
+export type AgentSettings = { mailboxId: string; enabled: boolean; modelId: string | null; autoDraftEnabled: boolean; autoSendEnabled: boolean; reviewerUserId: string | null; instructions: string; knowledge: string; autoSendFooter: string; autoSendSignature: string; autoSendLogoUrl: string; autoSendAccent: string; dailyLimit: number };
 
 export type AgentPanelProps = { open: boolean; fullSize: boolean; onClose: () => void; onToggleFullSize: () => void };
 export type QueuedAgentMessage = { id: string; text: string };

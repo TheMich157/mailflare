@@ -1536,7 +1536,7 @@ export const appSettings = sqliteTable("app_settings", {
 	iconKey: text("icon_key"),
 	agentEnabled: bool("agent_enabled").notNull().default(true),
 	agentProvider: text("agent_provider", { enum: ["cloudflare", "compatible"] }),
-	agentPreset: text("agent_preset", { enum: ["openai", "anthropic", "openrouter", "groq", "custom"] }),
+	agentPreset: text("agent_preset", { enum: ["openai", "anthropic", "openrouter", "groq", "xai", "custom"] }),
 	agentBaseUrl: text("agent_base_url"),
 	agentApiKey: text("agent_api_key"),
 	agentModel: text("agent_model"),
@@ -1617,8 +1617,14 @@ export const mailboxAgentSettings = sqliteTable("mailbox_agent_settings", {
 	enabled: bool("enabled").notNull().default(false),
 	modelId: text("model_id"),
 	autoDraftEnabled: bool("auto_draft_enabled").notNull().default(false),
+	autoSendEnabled: bool("auto_send_enabled").notNull().default(false),
 	reviewerUserId: text("reviewer_user_id").references(() => users.id, { onDelete: "set null" }),
 	instructions: text("instructions").notNull().default(""),
+	knowledge: text("knowledge").notNull().default(""),
+	autoSendFooter: text("auto_send_footer").notNull().default(""),
+	autoSendSignature: text("auto_send_signature").notNull().default(""),
+	autoSendLogoUrl: text("auto_send_logo_url").notNull().default(""),
+	autoSendAccent: text("auto_send_accent").notNull().default(""),
 	dailyLimit: integer("daily_limit").notNull().default(25),
 	updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
 }, (t) => [index("mailbox_agent_settings_reviewer_idx").on(t.reviewerUserId)]);
@@ -1673,6 +1679,36 @@ export const agentJobs = sqliteTable("agent_jobs", {
 	index("agent_jobs_source_message_idx").on(t.sourceMessageId),
 	index("agent_jobs_draft_idx").on(t.draftId),
 	index("agent_jobs_reviewer_idx").on(t.reviewerUserId),
+]);
+
+/** One automatic reply per mailbox thread, also the source of the hourly and daily caps. */
+export const agentAutoSends = sqliteTable("agent_auto_sends", {
+	id: text("id").primaryKey(),
+	mailboxId: text("mailbox_id").notNull().references(() => mailboxes.id, { onDelete: "cascade" }),
+	threadId: text("thread_id").notNull(),
+	messageId: text("message_id").notNull().references(() => messages.id, { onDelete: "cascade" }),
+	sentMessageId: text("sent_message_id").references(() => messages.id, { onDelete: "set null" }),
+	senderAddress: text("sender_address").notNull(),
+	createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+}, (t) => [
+	uniqueIndex("agent_auto_sends_thread_idx").on(t.mailboxId, t.threadId),
+	index("agent_auto_sends_sender_idx").on(t.mailboxId, t.senderAddress, t.createdAt),
+	index("agent_auto_sends_mailbox_idx").on(t.mailboxId, t.createdAt),
+	index("agent_auto_sends_message_idx").on(t.messageId),
+	index("agent_auto_sends_sent_idx").on(t.sentMessageId),
+]);
+
+/** Threads a person needs to answer. The inbox shows these; they are not derived and are backed up. */
+export const agentEscalations = sqliteTable("agent_escalations", {
+	id: text("id").primaryKey(),
+	mailboxId: text("mailbox_id").notNull().references(() => mailboxes.id, { onDelete: "cascade" }),
+	threadId: text("thread_id").notNull(),
+	messageId: text("message_id").notNull().references(() => messages.id, { onDelete: "cascade" }),
+	reason: text("reason").notNull(),
+	createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+}, (t) => [
+	uniqueIndex("agent_escalations_message_idx").on(t.mailboxId, t.messageId),
+	index("agent_escalations_thread_idx").on(t.mailboxId, t.threadId),
 ]);
 
 export const agentDraftMetadata = sqliteTable("agent_draft_metadata", {
@@ -1824,6 +1860,8 @@ export const schema = {
 	agentConversations,
 	agentChatMessages,
 	agentJobs,
+	agentAutoSends,
+	agentEscalations,
 	agentDraftMetadata,
 	agentSendApprovals,
 	mcpKeyMailboxes,

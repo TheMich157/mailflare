@@ -358,6 +358,9 @@ function MessageDetailContent({ messageId }: { messageId: string }) {
       <h1 className={clsx("sm:pl-[78px] px-4 pb-2 pt-2 text-2xl text-neutral-900 sm:pr-6")} title={message.subject ?? t("list.noSubject")}>
         {message.subject ?? t("list.noSubject")}
       </h1>
+      {message.needsHuman && (
+        <p className="sm:ml-[78px] mx-4 mb-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-900 ring-1 ring-rose-200 sm:mr-6">{t("message.needsHuman")}</p>
+      )}
       <MessageInviteCard key={message.id} messageId={message.id} hasCalendarAttachment={!!findInviteAttachment(attachments)} className={clsx("sm:ml-[78px] mx-4 mb-3 sm:mr-6")} />
       <ConversationNotes
         className={clsx("sm:pl-[78px] px-4 sm:pr-6")}

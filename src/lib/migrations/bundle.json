@@ -986,6 +986,26 @@
       "statements": [
         "CREATE TABLE `contact_details` (\n\t`contact_id` text PRIMARY KEY NOT NULL,\n\t`details` text DEFAULT '{}' NOT NULL,\n\t`updated_at` integer NOT NULL,\n\tFOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE cascade\n);"
       ]
+    },
+    {
+      "name": "0103_agent_auto_send.sql",
+      "statements": [
+        "ALTER TABLE `mailbox_agent_settings` ADD `auto_send_enabled` integer DEFAULT false NOT NULL;",
+        "ALTER TABLE `mailbox_agent_settings` ADD `knowledge` text DEFAULT '' NOT NULL;",
+        "ALTER TABLE `mailbox_agent_settings` ADD `auto_send_footer` text DEFAULT '' NOT NULL;",
+        "ALTER TABLE `mailbox_agent_settings` ADD `auto_send_signature` text DEFAULT '' NOT NULL;",
+        "ALTER TABLE `mailbox_agent_settings` ADD `auto_send_logo_url` text DEFAULT '' NOT NULL;",
+        "ALTER TABLE `mailbox_agent_settings` ADD `auto_send_accent` text DEFAULT '' NOT NULL;",
+        "CREATE TABLE `agent_auto_sends` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`mailbox_id` text NOT NULL,\n\t`thread_id` text NOT NULL,\n\t`message_id` text NOT NULL,\n\t`sent_message_id` text,\n\t`sender_address` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\tFOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON UPDATE no action ON DELETE cascade,\n\tFOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade,\n\tFOREIGN KEY (`sent_message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE set null\n);",
+        "CREATE UNIQUE INDEX `agent_auto_sends_thread_idx` ON `agent_auto_sends` (`mailbox_id`, `thread_id`);",
+        "CREATE INDEX `agent_auto_sends_sender_idx` ON `agent_auto_sends` (`mailbox_id`, `sender_address`, `created_at`);",
+        "CREATE INDEX `agent_auto_sends_mailbox_idx` ON `agent_auto_sends` (`mailbox_id`, `created_at`);",
+        "CREATE INDEX `agent_auto_sends_message_idx` ON `agent_auto_sends` (`message_id`);",
+        "CREATE INDEX `agent_auto_sends_sent_idx` ON `agent_auto_sends` (`sent_message_id`);",
+        "CREATE TABLE `agent_escalations` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`mailbox_id` text NOT NULL,\n\t`thread_id` text NOT NULL,\n\t`message_id` text NOT NULL,\n\t`reason` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\tFOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON UPDATE no action ON DELETE cascade,\n\tFOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade\n);",
+        "CREATE UNIQUE INDEX `agent_escalations_message_idx` ON `agent_escalations` (`mailbox_id`, `message_id`);",
+        "CREATE INDEX `agent_escalations_thread_idx` ON `agent_escalations` (`mailbox_id`, `thread_id`);"
+      ]
     }
   ]
 }
