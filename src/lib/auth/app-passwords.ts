@@ -8,6 +8,7 @@ import type { AppPasswordScope } from "@/lib/api/scopes";
 import { apiKeyLookupPrefix } from "@/lib/api-keys";
 import { isListedAsAppPassword } from "@/lib/auth/app-password-utils";
 import { getClientIp } from "@/lib/auth/client-ip";
+import { forwardedHop } from "@/lib/http/forwarded";
 import { isDavEnabled } from "@/lib/dav/settings";
 import { isNodeRuntime } from "@/lib/runtime";
 
@@ -66,7 +67,7 @@ function isLoopback(ip: string | null): boolean {
 export function isSecureAppPasswordTransport(env: Pick<CloudflareEnv, "MAILFLARE_RUNTIME">, request: Request): boolean {
 	if (!isNodeRuntime(env)) return new URL(request.url).protocol === "https:";
 	const trustProxy = ["1", "true", "yes"].includes((process.env.TRUST_PROXY ?? "").toLowerCase());
-	const hop = request.headers.get("x-forwarded-proto")?.split(",").at(-1)?.trim().toLowerCase();
+	const hop = forwardedHop(request.headers.get("x-forwarded-proto"))?.toLowerCase();
 	if (trustProxy && hop === "https") return true;
 	return isLoopback(getClientIp(request)) && isLoopbackHost(request.headers.get("host") ?? new URL(request.url).host);
 }

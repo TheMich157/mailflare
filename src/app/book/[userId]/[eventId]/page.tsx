@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { ArrowLeft, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Globe2, MapPin, Users } from "@/components/icons";
 import { useLanguage } from "@/components/language-provider";
 import { LanguageSelector } from "@/components/language-selector";
+import { SourceCodeLink } from "@/components/source-code-link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -127,6 +128,7 @@ export default function PublicBookingEventPage() {
 
 						<span className="flex-1 max-sm:hidden" />
 						<div className="mb-4 max-w-48"><LanguageSelector /></div>
+						<p className="mb-4 text-xs text-neutral-500"><SourceCodeLink /></p>
 						<div className="flex min-w-0 items-center gap-3 max-sm:order-first max-sm:mb-5">
 
 							<img src={branding.iconUrl} width={24} height={24} alt={branding.appName || "Mailflare"} />

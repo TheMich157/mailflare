@@ -47,7 +47,7 @@ export default function AccountDetailsPage() {
 
 	function onSave() {
 		if (!account) return;
-		if (account.canForwardEmail && normalizeForwarding(account.forwardingEmail) !== savedForwarding) setConfirmingForwarding(true);
+		if (normalizeForwarding(account.forwardingEmail) !== savedForwarding) setConfirmingForwarding(true);
 		else void saveDetails();
 	}
 
@@ -116,7 +116,7 @@ export default function AccountDetailsPage() {
 					<Label htmlFor="account-name">{t("common.name")}</Label>
 					<Input id="account-name" value={account.name} disabled={!account.editable} onChange={(event) => setAccount({ ...account, name: event.target.value })} />
 				</div>
-				{account.canForwardEmail && <div className="space-y-2">
+				<div className="space-y-2">
 					<Label htmlFor="forwarding-email">{t("account.forwardingOptional")}</Label>
 					<Input
 						id="forwarding-email"
@@ -129,7 +129,7 @@ export default function AccountDetailsPage() {
 					<p className="text-xs leading-5 text-neutral-500">
 						{t("settings.forwarding.hint")}
 					</p>
-				</div>}
+				</div>
 				<div className="flex items-center justify-between gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
 					<div className="space-y-1">
 						<Label htmlFor="account-enabled" className="font-semibold text-neutral-900">{t("account.enabled")}</Label>

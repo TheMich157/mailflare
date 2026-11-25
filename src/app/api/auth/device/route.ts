@@ -5,7 +5,7 @@ import { getDb } from "@/db";
 import { users } from "@/db/schema";
 import { verifyPassword } from "@/lib/auth/password";
 import { deviceLoginSchema } from "@/lib/validators";
-import { allowDeviceLoginAttempt } from "@/lib/auth/rate-limit";
+import { allowAccountLoginAttempt, allowDeviceLoginAttempt } from "@/lib/auth/rate-limit";
 import { readJsonBody } from "@/lib/http/request";
 import { RequestBodyTooLargeError } from "@/lib/http/errors";
 import { recordAuthActivity } from "@/lib/auth/activity";
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 	}
 	const parsed = deviceLoginSchema.safeParse(body);
 	if (!parsed.success) return json({ error: "Invalid sign-in request" }, 400);
-	if (!(await allowDeviceLoginAttempt(env, request))) {
+	if (!(await allowDeviceLoginAttempt(env, request)) || ("password" in parsed.data && !(await allowAccountLoginAttempt(env, parsed.data.email)))) {
 		return json({ error: "Too many sign-in attempts. Try again shortly." }, 429, { "Retry-After": "60" });
 	}
 

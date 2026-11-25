@@ -1,6 +1,7 @@
 "use client";
 
 import packageJson from "../../package.json";
+import { SourceCodeLink } from "@/components/source-code-link";
 import { useSidebar } from "./sidebar-state";
 import { useShortcuts } from "./shortcuts";
 import { Keyboard } from "@/components/icons";
@@ -48,6 +49,8 @@ export function PoweredBy({ className = "px-1" }: { className?: string }) {
         >
           Mailflare v{packageJson.version}
         </a>
+        {" · "}
+        <SourceCodeLink />
       </p>
 	);
 }

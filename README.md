@@ -132,4 +132,14 @@ A schema change needs a migration for each database type. See [Databases](docs/d
 
 ## License
 
-See [LICENSE](LICENSE).
+This repository is a modified fork of [hieunc229/mailflare](https://github.com/hieunc229/mailflare), licensed under the GNU Affero General Public License v3.0 (see [LICENSE](LICENSE)). There is no commercial carve-out. The original copyright notices are kept. The corresponding source for this version is [https://github.com/TheMich157/mailflare](https://github.com/TheMich157/mailflare).
+
+Changes in this fork:
+
+- The installation is always fully entitled. Account seats are unlimited, and every feature upstream gates on a Pro, Team or other paid license is enabled without a license key. That includes account management, shared mailboxes and mailbox sharing, booking hosts, custom branding, and email forwarding.
+- The license activation screen, pricing cards, upgrade banner and Paymug license checks are removed. The app does not contact a license server.
+- The `license_settings` table and its migrations are unchanged.
+- The app shows a **Source code** link to this repository, as AGPL-3.0 section 13 requires for a network service.
+- GitHub Actions publishes the Docker image to `ghcr.io/themich157/mailflare`.
+
+See [NOTICE](NOTICE).
