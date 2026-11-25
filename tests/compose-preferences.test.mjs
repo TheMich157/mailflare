@@ -43,16 +43,16 @@ async function createFixture(t, { dropTable = false, dropUndoColumn = false } = 
 
 test("defaults are no read receipt and a 15 second undo window", async (t) => {
 	const { env } = await createFixture(t);
-	assert.deepEqual(await service.getComposePreferences(env, "u1"), { trackOpensDefault: false, undoSendSeconds: 15 });
+	assert.deepEqual(await service.getComposePreferences(env, "u1"), { trackOpensDefault: false, undoSendSeconds: 15, signature: "" });
 });
 
 test("each setting is saved on its own without resetting the other", async (t) => {
 	const { env } = await createFixture(t);
 	await service.updateComposePreferences(env, "u1", { trackOpensDefault: true });
 	await service.updateComposePreferences(env, "u1", { undoSendSeconds: 0 });
-	assert.deepEqual(await service.getComposePreferences(env, "u1"), { trackOpensDefault: true, undoSendSeconds: 0 });
+	assert.deepEqual(await service.getComposePreferences(env, "u1"), { trackOpensDefault: true, undoSendSeconds: 0, signature: "" });
 	await service.updateComposePreferences(env, "u1", { trackOpensDefault: false });
-	assert.deepEqual(await service.getComposePreferences(env, "u1"), { trackOpensDefault: false, undoSendSeconds: 0 });
+	assert.deepEqual(await service.getComposePreferences(env, "u1"), { trackOpensDefault: false, undoSendSeconds: 0, signature: "" });
 });
 
 test("preferences are removed with the user", async (t) => {
@@ -65,13 +65,13 @@ test("preferences are removed with the user", async (t) => {
 
 test("before migration 0072 reads fall back to the defaults and saving asks for the migration", async (t) => {
 	const { env } = await createFixture(t, { dropTable: true });
-	assert.deepEqual(await service.getComposePreferences(env, "u1"), { trackOpensDefault: false, undoSendSeconds: 15 });
+	assert.deepEqual(await service.getComposePreferences(env, "u1"), { trackOpensDefault: false, undoSendSeconds: 15, signature: "" });
 	await assert.rejects(service.updateComposePreferences(env, "u1", { trackOpensDefault: true }), service.ComposePreferencesUnavailableError);
 });
 
 test("before migration 0073 the read receipt still saves and only the undo window needs the migration", async (t) => {
 	const { env } = await createFixture(t, { dropUndoColumn: true });
-	assert.deepEqual(await service.updateComposePreferences(env, "u1", { trackOpensDefault: true }), { trackOpensDefault: true, undoSendSeconds: 15 });
-	assert.deepEqual(await service.getComposePreferences(env, "u1"), { trackOpensDefault: true, undoSendSeconds: 15 });
+	assert.deepEqual(await service.updateComposePreferences(env, "u1", { trackOpensDefault: true }), { trackOpensDefault: true, undoSendSeconds: 15, signature: "" });
+	assert.deepEqual(await service.getComposePreferences(env, "u1"), { trackOpensDefault: true, undoSendSeconds: 15, signature: "" });
 	await assert.rejects(service.updateComposePreferences(env, "u1", { undoSendSeconds: 5 }), service.ComposePreferencesUnavailableError);
 });

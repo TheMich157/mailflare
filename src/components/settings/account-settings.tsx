@@ -5,6 +5,7 @@ import { useLanguage } from "@/components/language-provider";
 import { LanguageSelector } from "@/components/language-selector";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MailboxSignatureForm } from "./mailbox-signature-form";
+import { PersonalSignatureForm } from "./personal-signature-form";
 import { ProfileForm } from "./profile-form";
 import { TimeZoneForm } from "./time-zone-form";
 import type { AccountSettingsResponse } from "./types";
@@ -62,12 +63,19 @@ export function AccountSettings() {
 						initialResetEmail={user.resetEmail ?? ""}
 					/>
 
+					<div className="space-y-4 rounded-lg bg-white p-6">
+						<div>
+							<h3 className="text-lg font-semibold text-neutral-900">{t("settings.signature.personalTitle")}</h3>
+							<p className="mt-1 text-sm text-neutral-500">{t("settings.signature.personalDescription")}</p>
+						</div>
+						<PersonalSignatureForm />
+					</div>
 					<div className="space-y-4 rounded-b-3xl rounded-t-lg bg-white p-6">
 						<div>
 							<h3 className="text-lg font-semibold text-neutral-900">{t("settings.account.signatureTitle")}</h3>
 							<p className="mt-1 text-sm text-neutral-500">{t("settings.account.signatureDescription")}</p>
 						</div>
-					<MailboxSignatureForm />
+						<MailboxSignatureForm />
 					</div>
 				</div>
 			</section>

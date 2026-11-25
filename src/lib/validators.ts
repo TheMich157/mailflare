@@ -357,7 +357,22 @@ export const accountMailboxSchema = z.object({
 
 export const updateMailboxSchema = z.object({
 	displayName: z.string().max(100).nullable().optional(),
-	signature: z.string().max(10_000).nullable().optional(),
+	signature: z.string().max(20_000).nullable().optional(),
+	brandingEnabled: z.boolean().nullable().optional(),
+	logoUrl: z.string().max(2000).nullable().optional(),
+	accentColor: z.string().max(7).nullable().optional(),
+	secondaryColor: z.string().max(7).nullable().optional(),
+	backgroundColor: z.string().max(7).nullable().optional(),
+	cardColor: z.string().max(7).nullable().optional(),
+	wordmark: z.string().max(80).nullable().optional(),
+	footerText: z.string().max(500).nullable().optional(),
+	footerLinks: z.array(z.object({
+		label: z.string().trim().min(1).max(80),
+		href: z.string().trim().max(500),
+	})).max(8).nullable().optional(),
+	legalLine: z.string().max(500).nullable().optional(),
+	disclosureFooter: z.string().max(1000).nullable().optional(),
+	clearBranding: z.boolean().optional(),
 	autoReplyEnabled: z.boolean().optional(),
 	autoReplySubject: z.string().trim().max(200).optional(),
 	autoReplyBody: z.string().max(10_000).optional(),

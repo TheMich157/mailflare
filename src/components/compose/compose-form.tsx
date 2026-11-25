@@ -24,6 +24,8 @@ import { useTrackOpens } from "./use-track-opens";
 import { FollowUpMenu } from "@/components/follow-ups/follow-up-menu";
 import { followUpOptionKey } from "@/components/follow-ups/follow-up-client-utils";
 import { formatScheduledSendTime } from "@/components/messages/scheduled-send-utils";
+import { selectOutboundSignature } from "@/lib/email/branded-layout";
+import { loadComposePreferences } from "./compose-preferences-utils";
 import { buildSendFormData, fetchDraft, formatAttachmentSize } from "./utils";
 import { RecipientInput } from "./recipient-input";
 import { RichTextEditor } from "./rich-text-editor";
@@ -247,12 +249,25 @@ export function ComposeForm({
 		if (draftMailbox) setSelectedMailbox(draftMailbox);
 	}, [loadedDraftMailboxId, mailboxes, selectedMailbox?.id, setSelectedMailbox]);
 
+	const [personalSignature, setPersonalSignature] = useState("");
+	useEffect(() => {
+		let active = true;
+		loadComposePreferences().then((preferences) => {
+			if (active) setPersonalSignature(preferences.signature ?? "");
+		}).catch(() => undefined);
+		return () => { active = false; };
+	}, []);
+	const activeSignature = selectOutboundSignature({
+		mailboxType: selectedMailbox?.type,
+		mailboxSignature: selectedMailbox?.signature,
+		personalSignature,
+	}) ?? "";
+
 	useEffect(() => {
 		if (loadingDraft) return;
-		const nextSignature = selectedMailbox?.signature ?? "";
-		setHtml((current) => applyMailboxSignatureHtml(current, previousSignature.current, nextSignature));
-		previousSignature.current = nextSignature;
-	}, [loadingDraft, selectedMailbox?.id, selectedMailbox?.signature]);
+		setHtml((current) => applyMailboxSignatureHtml(current, previousSignature.current, activeSignature));
+		previousSignature.current = activeSignature;
+	}, [loadingDraft, activeSignature]);
 
 	useEffect(() => () => {
 		void pendingSave.current?.();
@@ -262,7 +277,7 @@ export function ComposeForm({
 		pendingSave.current = null;
 		const bodyContent = htmlToPlainText(html).trim();
 		// Compare text with text: an HTML signature is stored as markup.
-		const signatureContent = htmlToPlainText(applyMailboxSignatureHtml("", "", selectedMailbox?.signature)).trim();
+		const signatureContent = htmlToPlainText(applyMailboxSignatureHtml("", "", activeSignature)).trim();
 		const signatureOnly = bodyContent === signatureContent;
 		const hasContent =
 			to.length > 0 || cc.length > 0 || bcc.length > 0 || subject.trim() || quotedHtml || attachments.length > 0 || (bodyContent && !signatureOnly);
@@ -328,7 +343,7 @@ export function ComposeForm({
 		return () => {
 			if (saveTimer.current) clearTimeout(saveTimer.current);
 		};
-	}, [attachments, bcc, cc, fromAddr, html, loadingDraft, quotedHtml, selectedMailbox?.id, selectedMailbox?.signature, subject, threading, to]);
+	}, [activeSignature, attachments, bcc, cc, fromAddr, html, loadingDraft, quotedHtml, selectedMailbox?.id, subject, threading, to]);
 
 	useEffect(() => {
 		if (!draftIdToLoad || loadingDraft) return;
@@ -446,7 +461,7 @@ export function ComposeForm({
 		setThreading(null);
 		setStoredAttachments([]);
 		setSubject("");
-		setHtml(applyMailboxSignatureHtml("", "", selectedMailbox?.signature));
+		setHtml(applyMailboxSignatureHtml("", "", activeSignature));
 		setQuotedHtml(null);
 		setAttachments([]);
 		setScheduledAt(null);
@@ -642,7 +657,7 @@ export function ComposeForm({
 		setThreading(null);
 		setStoredAttachments([]);
 		setSubject("");
-		setHtml(applyMailboxSignatureHtml("", "", selectedMailbox?.signature));
+		setHtml(applyMailboxSignatureHtml("", "", activeSignature));
 		setQuotedHtml(null);
 		setAttachments([]);
 		setScheduledAt(null);

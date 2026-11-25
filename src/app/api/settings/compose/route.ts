@@ -27,6 +27,10 @@ export async function PATCH(request: Request) {
 		if (seconds === null) return NextResponse.json({ error: "undoSendSeconds must be 0, 5, 10, 15 or 30" }, { status: 400 });
 		patch.undoSendSeconds = seconds;
 	}
+	if (body && "signature" in body) {
+		if (typeof body.signature !== "string" || body.signature.length > 20_000) return NextResponse.json({ error: "Signature is too long" }, { status: 400 });
+		patch.signature = body.signature;
+	}
 	if (Object.keys(patch).length === 0) return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
 	try {
 		return NextResponse.json(await updateComposePreferences(env, auth.user.id, patch));

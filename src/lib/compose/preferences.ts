@@ -5,7 +5,7 @@ import { isMissingColumnError, isMissingTableError } from "@/lib/database-errors
 import { DEFAULT_UNDO_SEND_SECONDS, parseUndoSendSeconds } from "./compose-utils";
 import type { ComposePreferences } from "./types";
 
-const DEFAULTS: ComposePreferences = { trackOpensDefault: false, undoSendSeconds: DEFAULT_UNDO_SEND_SECONDS };
+const DEFAULTS: ComposePreferences = { trackOpensDefault: false, undoSendSeconds: DEFAULT_UNDO_SEND_SECONDS, signature: "" };
 
 export class ComposePreferencesUnavailableError extends Error {
 	constructor() {
@@ -18,12 +18,35 @@ export async function getComposePreferences(env: CloudflareEnv, userId: string):
 	const db = getDb(env);
 	try {
 		const [row] = await db
-			.select({ trackOpensDefault: userComposePreferences.trackOpensDefault, undoSendSeconds: userComposePreferences.undoSendSeconds })
+			.select({
+				trackOpensDefault: userComposePreferences.trackOpensDefault,
+				undoSendSeconds: userComposePreferences.undoSendSeconds,
+				signature: userComposePreferences.signature,
+			})
 			.from(userComposePreferences)
 			.where(eq(userComposePreferences.userId, userId))
 			.limit(1);
 		if (!row) return DEFAULTS;
-		return { trackOpensDefault: row.trackOpensDefault, undoSendSeconds: parseUndoSendSeconds(row.undoSendSeconds) ?? DEFAULT_UNDO_SEND_SECONDS };
+		return {
+			trackOpensDefault: row.trackOpensDefault,
+			undoSendSeconds: parseUndoSendSeconds(row.undoSendSeconds) ?? DEFAULT_UNDO_SEND_SECONDS,
+			signature: row.signature ?? "",
+		};
+	} catch (error) {
+		if (isMissingTableError(error)) return DEFAULTS;
+		if (!isMissingColumnError(error)) throw error;
+	}
+	try {
+		const [row] = await db
+			.select({ trackOpensDefault: userComposePreferences.trackOpensDefault, undoSendSeconds: userComposePreferences.undoSendSeconds })
+			.from(userComposePreferences)
+			.where(eq(userComposePreferences.userId, userId))
+			.limit(1);
+		return {
+			trackOpensDefault: row?.trackOpensDefault ?? false,
+			undoSendSeconds: parseUndoSendSeconds(row?.undoSendSeconds) ?? DEFAULT_UNDO_SEND_SECONDS,
+			signature: "",
+		};
 	} catch (error) {
 		if (isMissingTableError(error)) return DEFAULTS;
 		if (!isMissingColumnError(error)) throw error;
@@ -33,7 +56,7 @@ export async function getComposePreferences(env: CloudflareEnv, userId: string):
 		.from(userComposePreferences)
 		.where(eq(userComposePreferences.userId, userId))
 		.limit(1);
-	return { ...DEFAULTS, trackOpensDefault: row?.trackOpensDefault ?? false };
+	return { ...DEFAULTS, trackOpensDefault: row?.trackOpensDefault ?? false, signature: "" };
 }
 
 export async function updateComposePreferences(env: CloudflareEnv, userId: string, patch: Partial<ComposePreferences>): Promise<ComposePreferences> {
@@ -49,6 +72,7 @@ export async function updateComposePreferences(env: CloudflareEnv, userId: strin
 	} catch (error) {
 		if (isMissingTableError(error)) throw new ComposePreferencesUnavailableError();
 		if (!isMissingColumnError(error)) throw error;
+		if ((patch.signature ?? "") !== "") throw new ComposePreferencesUnavailableError();
 	}
 	// Before migration 0073 only the read-receipt default can be stored.
 	if (next.undoSendSeconds !== DEFAULT_UNDO_SEND_SECONDS) throw new ComposePreferencesUnavailableError();

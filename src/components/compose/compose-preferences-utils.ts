@@ -31,6 +31,6 @@ export async function updateComposePreferences(next: Partial<ComposePreferences>
 	});
 	const data = (await response.json().catch(() => null)) as (ComposePreferences & { error?: string; code?: string }) | null;
 	if (!response.ok || !data) throw new Error(data?.code === "MIGRATION_REQUIRED" ? "MIGRATION_REQUIRED" : data?.error ?? "Failed to save composer settings");
-	cached = { trackOpensDefault: data.trackOpensDefault, undoSendSeconds: data.undoSendSeconds };
+	cached = { trackOpensDefault: data.trackOpensDefault, undoSendSeconds: data.undoSendSeconds, signature: data.signature ?? "" };
 	return cached;
 }

@@ -5,9 +5,9 @@
  */
 
 import { sanitizeEmailHtml } from "@/app/(dashboard)/inbox/[messageId]/email-html-sanitizer";
+import { QUOTE_ATTRIBUTE, QUOTE_OPEN } from "@/lib/email/branded-layout";
 
-export const QUOTE_ATTRIBUTE = "data-mailflare-quote";
-const QUOTE_OPEN = `<div class="mailflare-quote" ${QUOTE_ATTRIBUTE}="1">`;
+export { QUOTE_ATTRIBUTE };
 const SIGNATURE_ATTRIBUTE = "data-mailflare-signature";
 
 export function escapeHtml(value: string): string {

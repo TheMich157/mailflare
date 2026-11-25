@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EmailBrandSettings } from "@/components/admin/email-brand-settings";
 import { BRANDING_ICON_ACCEPT, saveBranding } from "./utils";
 
 export default function BrandingPage() {
@@ -91,6 +92,15 @@ export default function BrandingPage() {
 						{status && <p role="status" className="text-sm text-neutral-600">{status}</p>}
 						<Button type="submit" disabled={saving || !appName.trim()}>{saving ? t("common.saving") : t("branding.save")}</Button>
 					</form>
+				</CardContent>
+			</Card>
+			<Card className="rounded-3xl border-0 bg-white p-6">
+				<CardHeader className="py-0">
+					<CardTitle>{t("branding.email.title")}</CardTitle>
+					<CardDescription>{t("branding.email.description")}</CardDescription>
+				</CardHeader>
+				<CardContent className="pt-6">
+					<EmailBrandSettings />
 				</CardContent>
 			</Card>
 		</div>
