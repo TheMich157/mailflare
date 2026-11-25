@@ -1,3 +1,4 @@
+import { forwardedHop } from "@/lib/http/forwarded";
 import { getNodeEnv } from "@/lib/runtime";
 
 /**
@@ -22,7 +23,7 @@ export function expectedRequestOrigin(request: Request): string {
 	}
 	const host = request.headers.get("host")?.trim();
 	const trustProxy = ["1", "true", "yes"].includes((env.TRUST_PROXY ?? "").toLowerCase());
-	const forwardedProto = trustProxy ? request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() : undefined;
+	const forwardedProto = trustProxy ? forwardedHop(request.headers.get("x-forwarded-proto"))?.toLowerCase() : undefined;
 	const protocol = forwardedProto === "https" ? "https:" : url.protocol;
 	try {
 		return host ? new URL(`${protocol}//${host}`).origin : url.origin;

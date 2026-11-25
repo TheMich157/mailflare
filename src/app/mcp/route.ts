@@ -2,6 +2,7 @@ import { getEnv } from "@/lib/cloudflare";
 import { authenticateMcpRequest } from "@/lib/mcp/auth";
 import { createMailflareMcpHandler } from "@/lib/mcp/server";
 import { allowAgentRequest } from "@/lib/agent/rate-limit";
+import { forwardedHop } from "@/lib/http/forwarded";
 
 async function handle(request: Request) {
 	const url = new URL(request.url);
@@ -9,7 +10,7 @@ async function handle(request: Request) {
 	if (origin && origin !== url.origin) return new Response("Invalid origin", { status: 403 });
 	const env = getEnv();
 	const appUrl = env.APP_URL ? new URL(env.APP_URL) : null;
-	const forwardedHost = (request.headers.get("x-forwarded-host")?.split(",")[0] ?? request.headers.get("Host") ?? "").trim();
+	const forwardedHost = (forwardedHop(request.headers.get("x-forwarded-host")) ?? request.headers.get("Host") ?? "").trim();
 	if (appUrl && forwardedHost !== appUrl.host && url.host !== appUrl.host) return new Response("Invalid host", { status: 403 });
 	const effectiveOrigin = appUrl && forwardedHost === appUrl.host ? appUrl.origin : url.origin;
 	const principal = await authenticateMcpRequest(env, request);

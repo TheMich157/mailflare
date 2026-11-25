@@ -62,6 +62,13 @@ test("Node without APP_URL: Host is the origin, a proxy's scheme counts only und
 	const proxied = { host: "mail.example.com", "x-forwarded-proto": "https" };
 	assert.ok(await nodeCall({ TRUST_PROXY: "1" }, { ...proxied, Origin: "https://mail.example.com" }));
 	assert.equal(await nodeCall({ TRUST_PROXY: "1" }, { ...proxied, Origin: "http://mail.example.com" }), null);
+	// The client can prepend a scheme. Only the hop the proxy appended counts.
+	const appendedHttps = { host: "mail.example.com", "x-forwarded-proto": "http, https" };
+	assert.ok(await nodeCall({ TRUST_PROXY: "1" }, { ...appendedHttps, Origin: "https://mail.example.com" }));
+	assert.equal(await nodeCall({ TRUST_PROXY: "1" }, { ...appendedHttps, Origin: "http://mail.example.com" }), null);
+	const appendedHttp = { host: "mail.example.com", "x-forwarded-proto": "https, http" };
+	assert.equal(await nodeCall({ TRUST_PROXY: "1" }, { ...appendedHttp, Origin: "https://mail.example.com" }), null);
+	assert.ok(await nodeCall({ TRUST_PROXY: "1" }, { ...appendedHttp, Origin: "http://mail.example.com" }));
 	// Without a trusted proxy the forwarded scheme is attacker-controlled and ignored.
 	assert.equal(await nodeCall({}, { ...proxied, Origin: "https://mail.example.com" }), null);
 	assert.ok(await nodeCall({}, { ...proxied, Origin: "http://mail.example.com" }));

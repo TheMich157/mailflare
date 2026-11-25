@@ -5,7 +5,7 @@ import { getDb } from "@/db";
 import { users } from "@/db/schema";
 import { verifyPassword } from "@/lib/auth/password";
 import { loginSchema } from "@/lib/validators";
-import { allowLoginAttempt } from "@/lib/auth/rate-limit";
+import { allowAccountLoginAttempt, allowLoginAttempt } from "@/lib/auth/rate-limit";
 import { verifyTurnstileToken } from "@/lib/auth/turnstile";
 import { readJsonBody } from "@/lib/http/request";
 import { RequestBodyTooLargeError } from "@/lib/http/errors";
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
 	}
 	const parsed = loginSchema.safeParse(body);
 	if (!parsed.success) return authError("invalid_request", 400);
-	if (!(await allowLoginAttempt(env, request))) {
+	if (!(await allowLoginAttempt(env, request)) || !(await allowAccountLoginAttempt(env, parsed.data.email))) {
 		return authError("rate_limited", 429, { "Retry-After": "60" });
 	}
 	if (!(await verifyTurnstileToken(env, request, (body as Record<string, unknown>).turnstileToken))) {

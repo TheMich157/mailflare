@@ -1,5 +1,6 @@
 import type { IncomingHttpHeaders } from "node:http";
 import { hasValidSessionMutationOrigin } from "@/lib/auth/origin";
+import { forwardedHop } from "@/lib/http/forwarded";
 
 /**
  * The Worker refuses realtime upgrades whose Origin is not the app's own (worker.ts); the Node server
@@ -8,7 +9,7 @@ import { hasValidSessionMutationOrigin } from "@/lib/auth/origin";
  */
 export function isRealtimeOriginAllowed(headers: IncomingHttpHeaders, options: { appUrl?: string; trustProxy: boolean }): boolean {
 	const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
-	const forwardedProto = options.trustProxy ? first(headers["x-forwarded-proto"])?.split(",")[0]?.trim() : undefined;
+	const forwardedProto = options.trustProxy ? forwardedHop(headers["x-forwarded-proto"])?.toLowerCase() : undefined;
 	let base: string;
 	try {
 		base = options.appUrl ? new URL(options.appUrl).origin : `${forwardedProto === "https" ? "https" : "http"}://${first(headers.host) ?? "localhost"}`;

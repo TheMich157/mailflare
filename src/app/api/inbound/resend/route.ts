@@ -4,6 +4,7 @@ import { getEmailAddress, getEmailAddressList } from "@/lib/email/address";
 import { getResendClient } from "@/lib/email/outbound-provider";
 import { intakeProviderMail } from "@/lib/email/provider-intake";
 import { getReceivedEmail } from "@/lib/email/resend-api";
+import { downloadResendRaw, ResendRawError } from "@/lib/email/resend-raw";
 import { verifySvixSignature } from "@/lib/email/svix";
 import { getResendWebhookSecret } from "@/lib/domains/resend-receiving";
 import { RequestBodyTooLargeError } from "@/lib/http/errors";
@@ -47,10 +48,15 @@ export async function POST(request: Request) {
 	const email = await getReceivedEmail(client, emailId);
 	const download = email.raw?.download_url;
 	if (!download) return NextResponse.json({ error: "Resend did not provide the raw message" }, { status: 502 });
-	const rawResponse = await fetch(download);
-	if (!rawResponse.ok) return NextResponse.json({ error: "Could not download the raw message" }, { status: 502 });
+	let raw: ArrayBuffer;
+	try {
+		raw = await downloadResendRaw(download);
+	} catch (error) {
+		if (error instanceof ResendRawError) return NextResponse.json({ error: "Could not download the raw message" }, { status: 502 });
+		throw error;
+	}
 
 	const recipients = [...(email.to ?? []), ...(email.cc ?? []), ...(email.bcc ?? [])].flatMap((value) => getEmailAddressList(value));
-	const result = await intakeProviderMail(env, { from: getEmailAddress(email.from), recipients, raw: await rawResponse.arrayBuffer() });
+	const result = await intakeProviderMail(env, { from: getEmailAddress(email.from), recipients, raw });
 	return NextResponse.json(result);
 }

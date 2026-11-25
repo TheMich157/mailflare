@@ -50,10 +50,13 @@ test("APP_URL set: the reconstructed host still matches", async () => {
 	assert.equal(globalThis.mcpCalls[0].origin, "https://mail.example.com");
 });
 
-test("APP_URL set: the first entry of a forwarded-host list wins", async () => {
+test("APP_URL set: only the proxy's last forwarded-host hop is trusted", async () => {
 	setup({ APP_URL: "https://mail.example.com" });
-	const response = await POST(request("http://127.0.0.1:3000/mcp", { "x-forwarded-host": "mail.example.com, proxy.internal" }));
-	assert.equal(response.status, 200);
+	const spoofed = await POST(request("http://127.0.0.1:3000/mcp", { "x-forwarded-host": "mail.example.com, evil.example" }));
+	assert.equal(spoofed.status, 403);
+	assert.deepEqual(globalThis.mcpCalls, []);
+	const appended = await POST(request("http://127.0.0.1:3000/mcp", { "x-forwarded-host": "evil.example, mail.example.com" }));
+	assert.equal(appended.status, 200);
 	assert.equal(globalThis.mcpCalls[0].origin, "https://mail.example.com");
 });
 

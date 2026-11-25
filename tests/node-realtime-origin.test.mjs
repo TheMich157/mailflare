@@ -12,6 +12,8 @@ test("same-origin handshakes are accepted", () => {
 	assert.equal(allowed({ host: "mail.example.com", origin: "https://mail.example.com" }, { trustProxy: true, appUrl: undefined }), false, "scheme differs without a trusted proxy header");
 	assert.equal(allowed({ host: "127.0.0.1:3000", origin: "https://mail.example.com" }, { appUrl: "https://mail.example.com" }), true);
 	assert.equal(allowed({ host: "mail.example.com", origin: "https://mail.example.com", "x-forwarded-proto": "https" }, { trustProxy: true }), true);
+	assert.equal(allowed({ host: "mail.example.com", origin: "https://mail.example.com", "x-forwarded-proto": "http, https" }, { trustProxy: true }), true);
+	assert.equal(allowed({ host: "mail.example.com", origin: "https://mail.example.com", "x-forwarded-proto": "https, http" }, { trustProxy: true }), false);
 });
 
 test("a sibling-subdomain page cannot open the socket with the user's cookie", () => {

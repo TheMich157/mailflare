@@ -33,6 +33,22 @@ export async function allowBookingAttempt(env: CloudflareEnv, request: Request):
 	}
 }
 
+/**
+ * One budget per account, shared by the web login and the device login.
+ * The IP budget alone does not stop a guess spread across many addresses.
+ */
+export async function allowAccountLoginAttempt(env: CloudflareEnv, email: string): Promise<boolean> {
+	if (!env.LOGIN_RATE_LIMIT) return true;
+	const account = email.trim().toLowerCase();
+	if (!account) return true;
+	try {
+		return (await env.LOGIN_RATE_LIMIT.limit({ key: `acct:${account}` })).success;
+	} catch (error) {
+		console.warn("Account login rate limiter unavailable", error);
+		return true;
+	}
+}
+
 export async function allowLoginAttempt(env: CloudflareEnv, request: Request): Promise<boolean> {
 	if (!env.LOGIN_RATE_LIMIT) return true;
 	try {

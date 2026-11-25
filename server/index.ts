@@ -20,6 +20,7 @@ import { serveFetch } from "./runtime/fetch-adapter";
 import { applyMigrations } from "./runtime/migrate";
 import { startScheduler } from "./runtime/scheduler";
 import { startSmtpListener } from "./runtime/smtp";
+import { forwardedHop } from "@/lib/http/forwarded";
 
 /**
  * The self-hosted entrypoint: one Node process serving the Next app, the
@@ -84,6 +85,14 @@ async function main() {
 		delete request.headers["x-forwarded-for"];
 		delete request.headers["x-mailflare-client-ip"];
 		if (clientIp) request.headers["x-mailflare-client-ip"] = clientIp;
+		// Keep only the hop this proxy appended. A client can prepend its own
+		// scheme or host, and several checks used to read that first entry.
+		const proto = trustProxy ? forwardedHop(request.headers["x-forwarded-proto"])?.toLowerCase() : undefined;
+		const forwardedHost = trustProxy ? forwardedHop(request.headers["x-forwarded-host"]) : undefined;
+		if (proto === "https" || proto === "http") request.headers["x-forwarded-proto"] = proto;
+		else delete request.headers["x-forwarded-proto"];
+		if (forwardedHost) request.headers["x-forwarded-host"] = forwardedHost;
+		else delete request.headers["x-forwarded-host"];
 		const parsedUrl = parse(request.url ?? "/", true);
 		// CalDAV/CardDAV: PROPFIND and REPORT cannot be Next route handlers, so they are served before Next.
 		if (isDavPath(parsedUrl.pathname ?? "")) return void serveFetch(handleDavRequest, request, response, env);
