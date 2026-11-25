@@ -135,6 +135,43 @@ export const mailboxes = sqliteTable(
 	(t) => [uniqueIndex("mailboxes_address_idx").on(t.domainId, t.localPart), index("mailboxes_user_idx").on(t.userId)],
 );
 
+/**
+ * Outbound branded layout for a domain. A missing row means the built-in defaults.
+ * Kept off `domains` so a deploy before this migration can still send mail.
+ */
+export const domainEmailBranding = sqliteTable("domain_email_branding", {
+	domainId: text("domain_id").primaryKey().references(() => domains.id, { onDelete: "cascade" }),
+	enabled: bool("enabled").notNull().default(true),
+	logoUrl: text("logo_url"),
+	accentColor: text("accent_color"),
+	secondaryColor: text("secondary_color"),
+	backgroundColor: text("background_color"),
+	cardColor: text("card_color"),
+	wordmark: text("wordmark"),
+	footerText: text("footer_text"),
+	footerLinks: text("footer_links"),
+	legalLine: text("legal_line"),
+	disclosureFooter: text("disclosure_footer"),
+	updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
+});
+
+/** Per-mailbox override. Null columns inherit the domain template. */
+export const mailboxEmailBranding = sqliteTable("mailbox_email_branding", {
+	mailboxId: text("mailbox_id").primaryKey().references(() => mailboxes.id, { onDelete: "cascade" }),
+	enabled: bool("enabled"),
+	logoUrl: text("logo_url"),
+	accentColor: text("accent_color"),
+	secondaryColor: text("secondary_color"),
+	backgroundColor: text("background_color"),
+	cardColor: text("card_color"),
+	wordmark: text("wordmark"),
+	footerText: text("footer_text"),
+	footerLinks: text("footer_links"),
+	legalLine: text("legal_line"),
+	disclosureFooter: text("disclosure_footer"),
+	updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
+});
+
 export const mailboxAliases = sqliteTable(
 	"mailbox_aliases",
 	{
@@ -792,6 +829,8 @@ export const userComposePreferences = sqliteTable("user_compose_preferences", {
 	userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
 	trackOpensDefault: bool("track_opens_default").notNull().default(false),
 	undoSendSeconds: integer("undo_send_seconds").notNull().default(15),
+	/** Personal signature, used when this account sends from a personal mailbox. */
+	signature: text("signature"),
 	updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
 });
 
@@ -1785,7 +1824,9 @@ export const importJobs = sqliteTable("import_jobs", {
 export const schema = {
 	users,
 	domains,
+	domainEmailBranding,
 	mailboxes,
+	mailboxEmailBranding,
 	mailboxAliases,
 	autoReplyDeliveries,
 	mailboxAccess,

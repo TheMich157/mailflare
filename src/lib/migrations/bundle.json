@@ -986,6 +986,14 @@
       "statements": [
         "CREATE TABLE `contact_details` (\n\t`contact_id` text PRIMARY KEY NOT NULL,\n\t`details` text DEFAULT '{}' NOT NULL,\n\t`updated_at` integer NOT NULL,\n\tFOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE cascade\n);"
       ]
+    },
+    {
+      "name": "0103_email_branding.sql",
+      "statements": [
+        "CREATE TABLE `domain_email_branding` (\n\t`domain_id` text PRIMARY KEY NOT NULL,\n\t`enabled` integer DEFAULT true NOT NULL,\n\t`logo_url` text,\n\t`accent_color` text,\n\t`secondary_color` text,\n\t`background_color` text,\n\t`card_color` text,\n\t`wordmark` text,\n\t`footer_text` text,\n\t`footer_links` text,\n\t`legal_line` text,\n\t`disclosure_footer` text,\n\t`updated_at` integer NOT NULL,\n\tFOREIGN KEY (`domain_id`) REFERENCES `domains`(`id`) ON UPDATE no action ON DELETE cascade\n);",
+        "CREATE TABLE `mailbox_email_branding` (\n\t`mailbox_id` text PRIMARY KEY NOT NULL,\n\t`enabled` integer,\n\t`logo_url` text,\n\t`accent_color` text,\n\t`secondary_color` text,\n\t`background_color` text,\n\t`card_color` text,\n\t`wordmark` text,\n\t`footer_text` text,\n\t`footer_links` text,\n\t`legal_line` text,\n\t`disclosure_footer` text,\n\t`updated_at` integer NOT NULL,\n\tFOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON UPDATE no action ON DELETE cascade\n);",
+        "ALTER TABLE `user_compose_preferences` ADD `signature` text;"
+      ]
     }
   ]
 }

@@ -11,7 +11,7 @@ import type { ComposePreferences } from "@/lib/compose/types";
 /** Account-wide composer defaults; each message can still change the read receipt in the composer. */
 export function ComposeDefaultsSettings() {
 	const { t } = useLanguage();
-	const [preferences, setPreferences] = useState<ComposePreferences>({ trackOpensDefault: false, undoSendSeconds: DEFAULT_UNDO_SEND_SECONDS });
+	const [preferences, setPreferences] = useState<ComposePreferences>({ trackOpensDefault: false, undoSendSeconds: DEFAULT_UNDO_SEND_SECONDS, signature: "" });
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);

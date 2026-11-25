@@ -20,6 +20,7 @@ import { buildTrackingPixelUrl, injectTrackingPixel, resolveTrackingOrigin } fro
 import { getComposePreferences } from "@/lib/compose/preferences";
 import { getMailboxDomainAddresses } from "@/lib/mailboxes/domain-addresses";
 import { assertNoSuppressedRecipients, dropSuppressedRecipients } from "@/lib/deliverability/suppression";
+import { brandOutboundBodies } from "@/lib/email/brand-service";
 
 export type SendEmailInput = {
 	userId: string;
@@ -251,10 +252,18 @@ async function deliverEmail(env: CloudflareEnv, delivery: PreparedDelivery): Pro
 			publicOrigin: input.publicOrigin,
 			locale: input.locale,
 		});
-		if (prepared.text !== input.text || prepared.html !== input.html) {
-			await db.update(messages).set({ textBody: prepared.text ?? null, htmlBody: prepared.html ?? null }).where(eq(messages.id, messageId));
+		const branded = await brandOutboundBodies(env, {
+			from,
+			mailboxId,
+			userId: input.userId,
+			html: prepared.html,
+			text: prepared.text,
+			subject: input.subject,
+		});
+		if (branded.text !== input.text || branded.html !== input.html) {
+			await db.update(messages).set({ textBody: branded.text ?? null, htmlBody: branded.html ?? null }).where(eq(messages.id, messageId));
 		}
-		const html = input.trackOpens && prepared.html ? await withTrackingPixel(env, messageId, from, prepared.html, input.publicOrigin) : prepared.html;
+		const html = input.trackOpens && branded.html ? await withTrackingPixel(env, messageId, from, branded.html, input.publicOrigin) : branded.html;
 		const response = await sendThroughProvider(
 			env,
 			provider,
@@ -266,7 +275,7 @@ async function deliverEmail(env: CloudflareEnv, delivery: PreparedDelivery): Pro
 				subject: input.subject,
 				headers,
 				html,
-				text: prepared.text,
+				text: branded.text,
 				attachments: prepared.attachments.map((attachment) => ({
 					filename: attachment.filename,
 					type: attachment.type,

@@ -74,7 +74,7 @@ export function registerAdminMcpTools(server: McpServer, principal: McpPrincipal
 	});
 
 	if (principal.scopes.includes("mailboxes")) server.registerTool("manage_mailboxes", {
-		description: "List, inspect, create, update, or delete mailboxes. These actions manage mailbox configuration, not message content. Actions: list, get, create, update, delete. Pass id for get, update, or delete and data for create or update.",
+		description: "List, inspect, create, update, or delete mailboxes. These actions manage mailbox configuration, not message content. Actions: list, get, create, update, delete. Pass id for get, update, or delete and data for create or update. Update accepts signature (HTML or plain text) and branding overrides: brandingEnabled, logoUrl (https), accentColor, secondaryColor, backgroundColor, cardColor (#rrggbb), wordmark, footerText, footerLinks ([{label, href}]), legalLine, disclosureFooter. clearBranding removes the mailbox override so the domain template applies.",
 		inputSchema: adminInput,
 	}, async ({ action, id, data }) => {
 		if (!principal.scopes.includes("mailboxes")) return result({ error: "Permission denied" }, true);

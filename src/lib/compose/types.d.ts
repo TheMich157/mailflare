@@ -3,4 +3,6 @@ export type ComposePreferences = {
 	trackOpensDefault: boolean;
 	/** One of UNDO_SEND_OPTIONS; 0 sends without an undo window. */
 	undoSendSeconds: number;
+	/** Personal signature inserted when sending from a personal mailbox. */
+	signature: string;
 };

@@ -2,6 +2,7 @@ import { and, asc, eq, ne } from "drizzle-orm";
 import { getDb } from "@/db";
 import { domains, mailboxes, users } from "@/db/schema";
 import { formatEmailAddress } from "@/lib/email/address";
+import { brandOutboundBodies } from "@/lib/email/brand-service";
 import { getOutboundProviderConfig, sendThroughProvider } from "@/lib/email/outbound-provider";
 import type { SystemMailInput } from "@/lib/email/system-mail-types";
 
@@ -19,12 +20,13 @@ export async function sendSystemEmail(env: CloudflareEnv, input: SystemMailInput
 	if (!sender) return false;
 
 	const from = formatEmailAddress(sender.address, sender.name);
+	const branded = await brandOutboundBodies(env, { from, subject: input.subject, text: input.text, html: input.html, includeSignature: false });
 	await sendThroughProvider(env, await getOutboundProviderConfig(env, from), {
 		from,
 		to: [input.to],
 		subject: input.subject,
-		text: input.text,
-		html: input.html,
+		text: branded.text ?? input.text,
+		html: branded.html,
 		headers: {
 			"Auto-Submitted": "auto-generated",
 			"X-Auto-Response-Suppress": "All",

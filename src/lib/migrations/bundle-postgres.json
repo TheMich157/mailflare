@@ -553,6 +553,16 @@
         "CREATE TABLE \"contact_details\" (\n\t\"contact_id\" text PRIMARY KEY NOT NULL,\n\t\"details\" text DEFAULT '{}' NOT NULL,\n\t\"updated_at\" bigint NOT NULL\n);",
         "ALTER TABLE \"contact_details\" ADD CONSTRAINT \"contact_details_contact_id_contacts_id_fk\" FOREIGN KEY (\"contact_id\") REFERENCES \"public\".\"contacts\"(\"id\") ON DELETE cascade ON UPDATE no action;"
       ]
+    },
+    {
+      "name": "0027_email_branding.sql",
+      "statements": [
+        "CREATE TABLE \"domain_email_branding\" (\n\t\"domain_id\" text PRIMARY KEY NOT NULL,\n\t\"enabled\" boolean DEFAULT true NOT NULL,\n\t\"logo_url\" text,\n\t\"accent_color\" text,\n\t\"secondary_color\" text,\n\t\"background_color\" text,\n\t\"card_color\" text,\n\t\"wordmark\" text,\n\t\"footer_text\" text,\n\t\"footer_links\" text,\n\t\"legal_line\" text,\n\t\"disclosure_footer\" text,\n\t\"updated_at\" bigint NOT NULL\n);",
+        "ALTER TABLE \"domain_email_branding\" ADD CONSTRAINT \"domain_email_branding_domain_id_domains_id_fk\" FOREIGN KEY (\"domain_id\") REFERENCES \"public\".\"domains\"(\"id\") ON DELETE cascade ON UPDATE no action;",
+        "CREATE TABLE \"mailbox_email_branding\" (\n\t\"mailbox_id\" text PRIMARY KEY NOT NULL,\n\t\"enabled\" boolean,\n\t\"logo_url\" text,\n\t\"accent_color\" text,\n\t\"secondary_color\" text,\n\t\"background_color\" text,\n\t\"card_color\" text,\n\t\"wordmark\" text,\n\t\"footer_text\" text,\n\t\"footer_links\" text,\n\t\"legal_line\" text,\n\t\"disclosure_footer\" text,\n\t\"updated_at\" bigint NOT NULL\n);",
+        "ALTER TABLE \"mailbox_email_branding\" ADD CONSTRAINT \"mailbox_email_branding_mailbox_id_mailboxes_id_fk\" FOREIGN KEY (\"mailbox_id\") REFERENCES \"public\".\"mailboxes\"(\"id\") ON DELETE cascade ON UPDATE no action;",
+        "ALTER TABLE \"user_compose_preferences\" ADD COLUMN \"signature\" text;"
+      ]
     }
   ]
 }
